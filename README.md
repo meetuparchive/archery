@@ -3,21 +3,40 @@
 ### Overview
 
 Archery is a two-dimensional [R-Tree](http://en.wikipedia.org/wiki/R-tree)
-written in Scala. The implementation is immutable.
+written in Scala. The implementation is immutable: adding and removing points
+from the tree produces a new tree, leaving the old one untouched. Due to
+[structural sharing](http://en.wikipedia.org/wiki/Persistent_data_structure)
+this operation is quite efficient.
+
+The name "archery" is a corruption of the word "R-Tree".
 
 ### Example Usage
 
 ```scala
 import archery._
 
-val tree1 = RTree.empty[String]
-  .insert(Entry(Point(9.12F, -4.9F), "alice"))
-  .insert(Entry(Point(12.3F, 4.6F), "bob"))
+// create some entries
+val alice = Entry(Point(9.12F, -4.9F), "alice")
+val bob = Entry(Point(2.3F, 4.6F), "bob")
+val candice = Entry(Point(4.7F, -1.9F), "candice")
+val doug = Entry(Point(5.5F, -3.2F), "doug")
 
-val entries: Entry[String] = ...
+// build a tree with three points
+val tree1: RTree[String] = RTree(alice, bob, candice)
 
-val tree2 = entries.foldLeft(RTree.empty[String])(_ insert _)
+// add "doug"
+val tree2: RTree[String] = tree1.insert(doug)
 
+// remove "bob"
+val tree3: RTree[String] = tree2.remove(bob)
+
+// search from (0,-4) to (10,6), will find "doug"
+val bbox: Box = Box(0F, -4F, 10F, 6F)
+val results: Vector[Entry[String]] = tree3.search(bbox)
+
+// we can also just ask how many matching entries exist
+val n: Int = tree3.count(bbox)
+assert(results.length == n)
 ```
 
 ### Contributing
