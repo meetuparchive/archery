@@ -38,7 +38,8 @@ object Main {
     val th = Thyme.warmedBench(verbose = print)
     println(s"\nbuilding rtree from $size entries")
     val rt = th.pbench {
-      entries.foldLeft(RTree.empty[Int])(_ insert _)
+      RTree(entries: _*)
+      //entries.foldLeft(RTree.empty[Int])(_ insert _)
     }
 
     println(s"\ndoing $num random searches (radius: $radius)")

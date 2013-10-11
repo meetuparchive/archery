@@ -3,8 +3,22 @@
 ### Overview
 
 Archery is a two-dimensional [R-Tree](http://en.wikipedia.org/wiki/R-tree)
-implementation written in Scala. This README will contain more information
-very soon.
+written in Scala. The implementation is immutable.
+
+### Example Usage
+
+```scala
+import archery._
+
+val tree1 = RTree.empty[String]
+  .insert(Entry(Point(9.12F, -4.9F), "alice"))
+  .insert(Entry(Point(12.3F, 4.6F), "bob"))
+
+val entries: Entry[String] = ...
+
+val tree2 = entries.foldLeft(RTree.empty[String])(_ insert _)
+
+```
 
 ### Contributing
 
@@ -12,10 +26,10 @@ Building this project requires SBT 0.13.0.
 
 After you launch SBT, you can run the following commands:
 
- * `compile`: compile the project
- * `core/test`: run the tests
- * `benchmark/run`: run the included timing benchmarks
- * `console`: load a scala REPL with archery on the classpath.
+ * `compile` compile the project
+ * `core/test` run the tests
+ * `benchmark/run` run the included timing benchmarks
+ * `console` load a scala REPL with archery on the classpath.
 
 Tests are written with [ScalaTest](http://www.scalatest.org/) and use the
 excellent [ScalaCheck](https://github.com/rickynils/scalacheck) library for
