@@ -45,6 +45,12 @@ case class RTree[A](root: Node[A], size: Int) {
   }
 
   /**
+   * Insert entries into the tree, returning a new tree.
+   */
+  def insertAll(entries: Iterable[Entry[A]]): RTree[A] =
+    entries.foldLeft(this)(_ insert _)
+
+  /**
    * Remove a value found at (x, y) from the tree.
    */
   def remove(x: Float, y: Float, value: A): RTree[A] =
@@ -64,6 +70,12 @@ case class RTree[A](root: Node[A], size: Int) {
       case Some((es, Some(node))) =>
         es.foldLeft(RTree(node, size - 1))(_ insert _)
     }
+
+  /**
+   * Remove entries from the tree, returning a new tree.
+   */
+  def removeAll(entries: Iterable[Entry[A]]): RTree[A] =
+    entries.foldLeft(this)(_ remove _)
 
   /**
    * Performs a search for all entries in the search space.
