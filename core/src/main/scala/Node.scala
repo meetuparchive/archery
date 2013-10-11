@@ -1,6 +1,6 @@
 package archery
 
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.{ArrayBuffer, PriorityQueue}
 import scala.math.{min, max}
 
 /**
@@ -231,6 +231,67 @@ sealed trait Node[A] extends Member {
     buf
   }
 
+  /**
+   * 
+   */
+  def nearest(pt: Point, d0: Float): Option[(Float, Entry[A])] = {
+    var dist: Float = d0
+    var result: Option[(Float, Entry[A])] = None
+    this match {
+      case Leaf(children, box) =>
+        children.foreach { entry =>
+          val d = entry.geom.distance(pt)
+          if (d < dist) {
+            dist = d
+            result = Some((d, entry))
+          }
+        }
+      case Branch(children, box) =>
+        val cs = children.map(node => (node.box.distance(pt), node)).sortBy(_._1)
+        cs.foreach { case (d, node) =>
+          if (d >= dist) return result
+          node.nearest(pt, dist) match {
+            case some @ Some((d, _)) =>
+              dist = d
+              result = some
+            case None =>
+          }
+        }
+    }
+    result
+  }
+
+  /**
+   * 
+   */
+  def nearestK(pt: Point, k: Int, d0: Float, pq: PriorityQueue[(Float, Entry[A])]): Float = {
+    var dist: Float = d0
+    this match {
+      case Leaf(children, box) =>
+        children.foreach { entry =>
+          val d = entry.geom.distance(pt)
+          if (d < dist) {
+            pq += ((d, entry))
+            if (pq.size > k) {
+              dist = d
+              pq.dequeue
+            }
+          }
+        }
+      case Branch(children, box) =>
+        val cs = children.map(node => (node.box.distance(pt), node)).sortBy(_._1)
+        cs.foreach { case (d, node) =>
+          if (d >= dist) return dist
+          dist = node.nearestK(pt, k, dist, pq)
+        }
+    }
+    dist
+  }
+
+
+  /**
+   * 
+   */
   def count(space: Box): Int = {
     if (!space.isFinite) return 0
 

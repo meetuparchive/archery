@@ -128,6 +128,32 @@ class RTreeCheck extends PropSpec with ShouldMatchers with GeneratorDrivenProper
     }
   }
 
+  property("rtree.nearest works") {
+    forAll { (es: List[Entry[Int]], p: Point) =>
+      val rt = build(es)
+      if (es.isEmpty) {
+        rt.nearest(p) should be === None
+      } else {
+        val e = es.min(Ordering.by((e: Entry[Int]) => e.geom.distance(p)))
+        val d = e.pt.distance(p)
+        // it's possible that several points are tied for closest
+        // in these cases, the distances still must be equal.
+        rt.nearest(p).map(_.pt.distance(p)) should be === Some(d)
+      }
+    }
+  }
+
+  property("rtree.nearestK works") {
+    forAll { (es: List[Entry[Int]], p: Point, k0: Int) =>
+      val k = (k0 % 1000).abs
+      val rt = build(es)
+
+      val as = es.map(_.geom.distance(p)).sorted.take(k).toVector
+      val bs = rt.nearestK(p, k).map(_.pt.distance(p))
+      as should be === bs
+    }
+  }
+
   sealed trait Action {
     def test(rt: RTree[Int]): RTree[Int]
     def control(es: List[Entry[Int]]): List[Entry[Int]]

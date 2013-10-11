@@ -1,6 +1,6 @@
 package archery
 
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.{ArrayBuffer, PriorityQueue}
 import scala.math.{min, max}
 
 object RTree {
@@ -51,12 +51,6 @@ case class RTree[A](root: Node[A], size: Int) {
     entries.foldLeft(this)(_ insert _)
 
   /**
-   * Remove a value found at (x, y) from the tree.
-   */
-  def remove(x: Float, y: Float, value: A): RTree[A] =
-    remove(Entry(Point(x, y), value))
-
-  /**
    * Remove an entry from the tree, returning a new tree.
    * 
    * If the entry was not present, this method will throw an error.
@@ -78,18 +72,26 @@ case class RTree[A](root: Node[A], size: Int) {
     entries.foldLeft(this)(_ remove _)
 
   /**
-   * Performs a search for all entries in the search space.
-   * 
-   * Points on the boundary of the search space will be included.
-   */
-  def search(lat1: Float, lon1: Float, lat2: Float, lon2: Float): Seq[A] =
-    search(Box(lat1, lon1, lat2, lon2)).map(_.value)
-
-  /**
    * Return a sequence of all entries found in the given search space.
    */
   def search(space: Box): Seq[Entry[A]] =
     root.search(space)
+
+  /**
+   * Return a sequence of all entries found in the given search space.
+   */
+  def nearest(pt: Point): Option[Entry[A]] =
+    root.nearest(pt, Float.PositiveInfinity).map(_._2)
+
+  /**
+   * Return a sequence of all entries found in the given search space.
+   */
+  def nearestK(pt: Point, k: Int): Vector[Entry[A]] = {
+    implicit val ord = Ordering.by[(Float, Entry[A]), Float](_._1)
+    val pq = PriorityQueue.empty[(Float, Entry[A])]
+    root.nearestK(pt, k, Float.PositiveInfinity, pq)
+    pq.reverse.toVector.map(_._2)
+  }
 
   /**
    * Return a count of all entries found in the given search space.

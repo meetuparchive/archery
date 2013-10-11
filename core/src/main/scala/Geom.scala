@@ -1,6 +1,6 @@
 package archery
 
-import scala.math.{min, max}
+import scala.math.{min, max, sqrt}
 
 /**
  * Geometry represents a box (or point).
@@ -24,6 +24,15 @@ sealed trait Geom {
   def area: Float = width * height
 
   import java.lang.Float.{isNaN, isInfinite}
+
+  def distance(pt: Point): Float =
+    sqrt(distanceSquared(pt)).toFloat
+
+  def distanceSquared(pt: Point): Float = {
+    val dx = if (pt.x < x) x - pt.x else if (pt.x < x2) 0F else pt.x - x2
+    val dy = if (pt.y < y) y - pt.y else if (pt.y < y2) 0F else pt.y - y2
+    dx * dx + dy * dy
+  }
 
   def isFinite: Boolean = !(isNaN(x) || isInfinite(x) ||
     isNaN(y) || isInfinite(y) ||
@@ -66,6 +75,12 @@ sealed trait Geom {
 case class Point(x: Float, y: Float) extends Geom {
   def x2: Float = x
   def y2: Float = y
+
+  override def distanceSquared(pt: Point): Float = {
+    val dx = pt.x - x
+    val dy = pt.y - y
+    dx * dx + dy * dy
+  }
 }
 
 case class Box(x: Float, y: Float, x2: Float, y2: Float) extends Geom
