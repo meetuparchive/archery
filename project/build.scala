@@ -54,7 +54,7 @@ object ArcheryBuild extends Build {
     javaOptions in run += "-Xmx4G",
 
     libraryDependencies ++= Seq(
-      "ichi.bench" % "thyme" % "0.1.0" from "http://plastic-idolatry.com/jars/thyme-0.1.0.jar"
+      "ichi.bench" % "thyme" % "0.1.1" from "http://plastic-idolatry.com/jars/thyme-0.1.1.jar"
     )
   ) ++ noPublish
 

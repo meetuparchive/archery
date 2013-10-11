@@ -2,88 +2,65 @@ package archery
 
 import scala.collection.mutable.ArrayBuffer
 import scala.math.{min, max}
-import scala.util.Random.{nextFloat, nextInt}
+import scala.util.Random.{nextFloat, nextInt, nextGaussian}
+
+import ichi.bench.Thyme
 
 object Main {
+  val xmin, ymin = -5000F
+  val xmax, ymax = 5000F
+  val dx, dy = 10000F
+  val size = 1000000
+  val num = 1000
+  val radius = 10
+
+  val entries = (0 until size).map(n => Entry(nextPoint, n)).toArray
+  val extra = (0 until num).map(n => Entry(nextPoint, n + size)).toArray
+  val boxes = (0 until num).map(_ => nextBox(radius))
+
+  // generate values in [-5F, 5F], mean 0F with stddev 1F
+  def nextF: Float = {
+    val n = nextGaussian.toFloat
+    if (n < -5F) -5F else if (n > 5F) 5F else n
+  }
+
+  // cluster points around (0, 0)
   def nextPoint: Point =
-    Point(100F * nextFloat, 100F * nextFloat)
+    Point(1000F * nextF, 1000F * nextF)
 
-  def nextEntries(n: Int): Array[Entry[Int]] =
-    (0 until n).map(i => Entry(nextPoint, i)).toArray
-
-  def nextTree(n: Int): RTree[Int] =
-    nextEntries(n).foldLeft(RTree.empty[Int])((rt, e) => rt.insert(e))
-
-  def timer[A](f: => A): (A, Long) = {
-    val t0 = System.nanoTime
-    val a = f
-    val t = (System.nanoTime - t0) / 1000L
-    (a, t)
-  }
-
-  def timeNew(es: Array[Entry[Int]]): (RTree[Int], Long) =
-    timer {
-      var rt = RTree.empty[Int]
-      var i = 0
-      val t0 = System.nanoTime
-      while (i < es.length) {
-        rt = rt.insert(es(i))
-        i += 1
-      }
-      rt
-    }
-
-  def benchMercator() {
-    val xmin = -14030169.0F
-    val ymin =   2873645.0F
-    val xmax =  -7455361.0F
-    val ymax =   6226366.0F
-    val dx = xmax - ymin
-    val dy = ymax - ymin
-
-    def nextPoint = Point(nextFloat * dx + xmin, nextFloat * dy + ymin)
-    def nextEntry(n: Int) = Entry(nextPoint, n)
-
-    val mile = 1600F
-
-    def nextBox(n: Int) = {
-      val Point(x, y) = nextPoint
-      val d = n * mile
-      Box(x - d, y - d, x + d, y + d)
-    }
-
-    val sz = 1000 * 1000
-    val (rt, t1) = timer {
-      (0 until sz).foldLeft(RTree.empty[Int]) { (rt, i) =>
-        rt.insert(nextEntry(i))
-      }
-    }
-    println(s"built r-tree ($sz points) in $t1 us")
-
-    val num = 1000
-    val boxes = (0 until num).map(_ => nextBox(10))
-    val (n, t2) = timer {
-      var n = 0
-      boxes.foreach { b =>
-        n += rt.search(b).length
-      }
-      n
-    }
-    val avg = "%.1f" format (t2.toDouble / num)
-    println(s"$num searches found $n events in $t2 us (avg: $avg us)")
-  }
-
-  def benchLoad() {
-    val sz = 1000000
-    val es = nextEntries(sz)
-    (0 until 2).foreach(_ => timeNew(es))
-    val ts = (0 until 3).map(_ => timeNew(es)._2)
-    val avg = ts.sum / 3
-    println(s"$avg, $ts")
+  // generate box with radius r
+  def nextBox(r: Int): Box = {
+    val Point(x, y) = nextPoint
+    Box(x - r, y - r, x + r, y + r)
   }
 
   def main(args: Array[String]) {
-    //benchLoad()
-    benchMercator()
+    val th = Thyme.warmedBench(verbose = print)
+    println(s"\nbuilding rtree from $size entries")
+    val rt = th.pbench {
+      entries.foldLeft(RTree.empty[Int])(_ insert _)
+    }
+
+    println(s"\ndoing $num random searches (radius: $radius)")
+    val n1 = th.pbench {
+      boxes.foldLeft(0)((n, b) => n + rt.search(b).length)
+    }
+    println(s"found $n1 results")
+
+    println(s"\ndoing $num counts")
+    val n2 = th.pbench {
+      boxes.foldLeft(0)((n, b) => n + rt.count(b))
+    }
+    println(s"found $n2 results")
+
+    println(s"\nremoving $num entries")
+    th.pbench {
+      entries.take(num).foldLeft(rt)(_ remove _)
+    }
+
+    println(s"\ninserting $num entries")
+    th.pbench {
+      extra.foldLeft(rt)(_ insert _)
+    }
   }
 }
