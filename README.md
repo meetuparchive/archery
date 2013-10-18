@@ -64,6 +64,6 @@ details.
 
 ### Credits
 
-Archery is maintained by by Erik Osheim.
+Archery is maintained by Erik Osheim.
 
 Copyright (c) 2013 Meetup Inc.
