@@ -86,12 +86,22 @@ case class RTree[A](root: Node[A], size: Int) {
   /**
    * Return a sequence of all entries found in the given search space.
    */
-  def nearestK(pt: Point, k: Int): Vector[Entry[A]] = {
-    implicit val ord = Ordering.by[(Float, Entry[A]), Float](_._1)
-    val pq = PriorityQueue.empty[(Float, Entry[A])]
-    root.nearestK(pt, k, Float.PositiveInfinity, pq)
-    pq.reverse.toVector.map(_._2)
-  }
+  def nearestK(pt: Point, k: Int): IndexedSeq[Entry[A]] =
+    if (k < 1) {
+      Vector.empty
+    } else {
+      implicit val ord = Ordering.by[(Double, Entry[A]), Double](_._1)
+      val pq = PriorityQueue.empty[(Double, Entry[A])]
+      root.nearestK(pt, k, Double.PositiveInfinity, pq)
+      val arr = new Array[Entry[A]](pq.size)
+      var i = arr.length - 1
+      while (i >= 0) {
+        val (_, e) = pq.dequeue
+        arr(i) = e
+        i -= 1
+      }
+      arr
+    }
 
   /**
    * Return a count of all entries found in the given search space.
