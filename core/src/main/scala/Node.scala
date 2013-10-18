@@ -114,7 +114,7 @@ sealed trait Node[A] extends Member {
       case Leaf(children, box) =>
         val cs = children :+ entry
         if (cs.length <= MaxEntries) {
-          Right(Leaf(cs, box.expand(entry.pt)))
+          Right(Leaf(cs, box.expand(entry.geom)))
         } else {
           Left(Node.splitLeaf(cs))
         }
@@ -129,7 +129,7 @@ sealed trait Node[A] extends Member {
         //
         // the results are "node", the node to add to, and "n", the
         // position of that node in our vector.
-        val pt = entry.pt
+        val pt = entry.geom
         var node = children(0)
         var n = 0
         var area = node.box.expandArea(pt)
@@ -220,7 +220,7 @@ sealed trait Node[A] extends Member {
     def recur(node: Node[A]): Unit = node match {
       case Leaf(children, box) =>
         children.foreach { c =>
-          if (space.contains(c.pt)) buf.append(c)
+          if (space.contains(c.geom)) buf.append(c)
         }
       case Branch(children, box) =>
         children.foreach { c =>
@@ -234,9 +234,9 @@ sealed trait Node[A] extends Member {
   /**
    * 
    */
-  def nearest(pt: Point, d0: Float): Option[(Float, Entry[A])] = {
-    var dist: Float = d0
-    var result: Option[(Float, Entry[A])] = None
+  def nearest(pt: Point, d0: Double): Option[(Double, Entry[A])] = {
+    var dist: Double = d0
+    var result: Option[(Double, Entry[A])] = None
     this match {
       case Leaf(children, box) =>
         children.foreach { entry =>
@@ -264,8 +264,8 @@ sealed trait Node[A] extends Member {
   /**
    * 
    */
-  def nearestK(pt: Point, k: Int, d0: Float, pq: PriorityQueue[(Float, Entry[A])]): Float = {
-    var dist: Float = d0
+  def nearestK(pt: Point, k: Int, d0: Double, pq: PriorityQueue[(Double, Entry[A])]): Double = {
+    var dist: Double = d0
     this match {
       case Leaf(children, box) =>
         children.foreach { entry =>
@@ -273,8 +273,8 @@ sealed trait Node[A] extends Member {
           if (d < dist) {
             pq += ((d, entry))
             if (pq.size > k) {
-              dist = d
               pq.dequeue
+              dist = pq.head._1
             }
           }
         }
@@ -300,7 +300,7 @@ sealed trait Node[A] extends Member {
         var n = 0
         var i = 0
         while (i < children.length) {
-          if (space.contains(children(i).pt)) n += 1
+          if (space.contains(children(i).geom)) n += 1
           i += 1
         }
         n
@@ -324,7 +324,7 @@ sealed trait Node[A] extends Member {
    * match an Entry(pt, x) if entry.value == x.value.
    */
   def contains(entry: Entry[A]): Boolean =
-    search(entry.pt.toBox).contains(entry)
+    search(entry.geom.toBox).contains(entry)
 }
 
 case class Branch[A](children: Vector[Node[A]], box: Box) extends Node[A] {
@@ -357,7 +357,7 @@ case class Branch[A](children: Vector[Node[A]], box: Box) extends Node[A] {
         None
       }
 
-    if (!box.contains(entry.pt)) None else loop(0)
+    if (!box.contains(entry.geom)) None else loop(0)
   }
 }
 
@@ -365,7 +365,7 @@ case class Branch[A](children: Vector[Node[A]], box: Box) extends Node[A] {
 case class Leaf[A](children: Vector[Entry[A]], box: Box) extends Node[A] {
 
   def remove(entry: Entry[A]): Option[(Joined[Entry[A]], Option[Node[A]])] = {
-    if (!box.contains(entry.pt)) return None
+    if (!box.contains(entry.geom)) return None
     val i = children.indexOf(entry)
     if (i < 0) {
       None
@@ -375,7 +375,7 @@ case class Leaf[A](children: Vector[Entry[A]], box: Box) extends Node[A] {
       Some((Joined(children(1 - i)), None))
     } else {
       val cs = children.take(i) ++ children.drop(i + 1)
-      val b = contract(entry.pt, cs.foldLeft(Box.empty)(_ expand _.geom))
+      val b = contract(entry.geom, cs.foldLeft(Box.empty)(_ expand _.geom))
       Some((Joined.empty[Entry[A]], Some(Leaf(cs, b))))
     }
   }
@@ -388,9 +388,7 @@ case class Leaf[A](children: Vector[Entry[A]], box: Box) extends Node[A] {
  * reasonable equality definition. Otherwise things like remove and
  * contains may not work very well.
  */
-case class Entry[A](pt: Point, value: A) extends Member {
-  def geom: Geom = pt
-}
+case class Entry[A](geom: Geom, value: A) extends Member
 
 object Node {
 

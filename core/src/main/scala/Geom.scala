@@ -5,10 +5,6 @@ import scala.math.{min, max, sqrt}
 /**
  * Geometry represents a box (or point).
  * 
- * The box/point distinction is really only relevant because
- * point-in-box searches are a lot faster. Otherwise they have
- * basically the same API.
- * 
  * (x1, y1) is the lower left point and (x2, y2) is upper right. So
  * Box(1, 2, 5, 4) is at (1, 2) and is 4 wide and 2 high. Obviously
  * for points, (x1, y1) == (x2, y2) so both points are the same.
@@ -25,19 +21,20 @@ sealed trait Geom {
 
   import java.lang.Float.{isNaN, isInfinite}
 
-  def distance(pt: Point): Float =
-    sqrt(distanceSquared(pt)).toFloat
+  def distance(pt: Point): Double =
+    sqrt(distanceSquared(pt))
 
-  def distanceSquared(pt: Point): Float = {
-    val dx = if (pt.x < x) x - pt.x else if (pt.x < x2) 0F else pt.x - x2
-    val dy = if (pt.y < y) y - pt.y else if (pt.y < y2) 0F else pt.y - y2
+  def distanceSquared(pt: Point): Double = {
+    val dx = (if (pt.x < x) x - pt.x else if (pt.x < x2) 0F else pt.x - x2).toDouble
+    val dy = (if (pt.y < y) y - pt.y else if (pt.y < y2) 0F else pt.y - y2).toDouble
     dx * dx + dy * dy
   }
 
-  def isFinite: Boolean = !(isNaN(x) || isInfinite(x) ||
-    isNaN(y) || isInfinite(y) ||
-    isNaN(x2) || isInfinite(x2) ||
-    isNaN(y2) || isInfinite(y2))
+  def isFinite: Boolean =
+    !(isNaN(x) || isInfinite(x) ||
+      isNaN(y) || isInfinite(y) ||
+      isNaN(x2) || isInfinite(x2) ||
+      isNaN(y2) || isInfinite(y2))
 
   def toBox: Box = Box(x, y, x2, y2)
 
@@ -45,8 +42,12 @@ sealed trait Geom {
 
   def upperRight: Point = Point(x2, y2)
 
-  def contains(pt: Point): Boolean =
-    x <= pt.x && pt.x <= x2 && y <= pt.y && pt.y <= y2
+  def contains(geom: Geom): Boolean = geom match {
+    case pt: Point =>
+      x <= pt.x && pt.x <= x2 && y <= pt.y && pt.y <= y2
+    case box: Box =>
+      x <= box.x && box.x2 <= x2 && y <= box.y && box.y2 <= y2
+  }
 
   def intersects(box: Box): Boolean =
     x <= box.x2 && box.x <= x2 && y <= box.y2 && box.y <= y2
@@ -76,9 +77,9 @@ case class Point(x: Float, y: Float) extends Geom {
   def x2: Float = x
   def y2: Float = y
 
-  override def distanceSquared(pt: Point): Float = {
-    val dx = pt.x - x
-    val dy = pt.y - y
+  override def distanceSquared(pt: Point): Double = {
+    val dx = (pt.x - x).toDouble
+    val dy = (pt.y - y).toDouble
     dx * dx + dy * dy
   }
 }

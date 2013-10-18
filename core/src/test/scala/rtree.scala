@@ -22,20 +22,30 @@ class RTreeCheck extends PropSpec with ShouldMatchers with GeneratorDrivenProper
   val dx = xmax - ymin
   val dy = ymax - ymin
   
-  def finite(n: Float) = !n.isInfinite && !n.isNaN
+  //def isFinite(n: Float) = !n.isInfinite && !n.isNaN && n.abs < 1.0E200
+  def isFinite(n: Float) = !n.isInfinite && !n.isNaN && n.abs < 1.0E100
 
   implicit val arbpoint = Arbitrary(for {
-    x <- arbitrary[Float].suchThat(finite)
-    y <- arbitrary[Float].suchThat(finite)
+    x <- arbitrary[Float].suchThat(isFinite)
+    y <- arbitrary[Float].suchThat(isFinite)
   } yield {
     Point(xmin + dx * (x.abs % 1.0F), ymin + dy * (y.abs % 1.0F))
   })
 
+  implicit val arbbox = Arbitrary(for {
+    x1 <- arbitrary[Float].suchThat(isFinite)
+    x2 <- arbitrary[Float].suchThat(isFinite)
+    y1 <- arbitrary[Float].suchThat(isFinite)
+    y2 <- arbitrary[Float].suchThat(isFinite)
+  } yield {
+    Box(min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2))
+  })
+
   implicit val arbentry = Arbitrary(for {
-    p <- arbitrary[Point]
+    either <- arbitrary[Either[Point, Box]]
     n <- arbitrary[Int]
   } yield {
-    Entry(p, n)
+    Entry(either.fold(identity, identity), n)
   })
 
   def build(es: List[Entry[Int]]): RTree[Int] =
@@ -91,10 +101,9 @@ class RTreeCheck extends PropSpec with ShouldMatchers with GeneratorDrivenProper
 
   val mile = 1600F
 
-  def bound(p: Point, n: Int): Box = {
-    val Point(x, y) = p
+  def bound(g: Geom, n: Int): Box = {
     val d = 10F * mile
-    Box(x - d, y - d, x + d, y + d)
+    Box(g.x - d, g.y - d, g.x2 + d, g.y2 + d)
   }
 
   property("rtree.search/count ignores nan/inf") {
@@ -119,11 +128,11 @@ class RTreeCheck extends PropSpec with ShouldMatchers with GeneratorDrivenProper
       val rt = build(es)
 
       val box1 = bound(p, 10)
-      rt.search(box1).toSet should be === es.filter(e => box1.contains(e.pt)).toSet
+      rt.search(box1).toSet should be === es.filter(e => box1.contains(e.geom)).toSet
 
       es.foreach { e =>
-        val box2 = bound(e.pt, 10)
-        rt.search(box2).toSet should be === es.filter(e => box2.contains(e.pt)).toSet
+        val box2 = bound(e.geom, 10)
+        rt.search(box2).toSet should be === es.filter(e => box2.contains(e.geom)).toSet
       }
     }
   }
@@ -135,10 +144,10 @@ class RTreeCheck extends PropSpec with ShouldMatchers with GeneratorDrivenProper
         rt.nearest(p) should be === None
       } else {
         val e = es.min(Ordering.by((e: Entry[Int]) => e.geom.distance(p)))
-        val d = e.pt.distance(p)
+        val d = e.geom.distance(p)
         // it's possible that several points are tied for closest
         // in these cases, the distances still must be equal.
-        rt.nearest(p).map(_.pt.distance(p)) should be === Some(d)
+        rt.nearest(p).map(_.geom.distance(p)) should be === Some(d)
       }
     }
   }
@@ -149,7 +158,7 @@ class RTreeCheck extends PropSpec with ShouldMatchers with GeneratorDrivenProper
       val rt = build(es)
 
       val as = es.map(_.geom.distance(p)).sorted.take(k).toVector
-      val bs = rt.nearestK(p, k).map(_.pt.distance(p))
+      val bs = rt.nearestK(p, k).map(_.geom.distance(p))
       as should be === bs
     }
   }
