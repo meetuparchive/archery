@@ -48,6 +48,12 @@ object Main {
     }
     println(s"found $n1 results")
 
+    println(s"\ndoing $num random searches with filter (radius: $radius)")
+    val nx = th.pbench {
+      boxes.foldLeft(0)((n, b) => n + rt.search(b, _ => true).length)
+    }
+    println(s"found $nx results")
+
     println(s"\ndoing $num counts")
     val n2 = th.pbench {
       boxes.foldLeft(0)((n, b) => n + rt.count(b))

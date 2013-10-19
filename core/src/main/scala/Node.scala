@@ -30,9 +30,11 @@ sealed trait Member {
  * of entries. This design is commmon to RTree implementations and it
  * seemed like a good idea to keep the nomenclature the same.
  */
-sealed trait Node[A] extends Member {
+sealed trait Node[A] extends Member { self =>
   def box: Box
   def geom: Geom = box
+
+  def children: Vector[Member]
 
   /**
    * Put all the entries this node contains (directly or indirectly)
@@ -213,14 +215,14 @@ sealed trait Node[A] extends Member {
    * 
    * Points on the boundary of the search space will be included.
    */
-  def search(space: Box): Seq[Entry[A]] = {
+  def search(space: Box, f: Entry[A] => Boolean): Seq[Entry[A]] = {
     if (!space.isFinite) return Seq.empty
 
     val buf = ArrayBuffer.empty[Entry[A]]
     def recur(node: Node[A]): Unit = node match {
       case Leaf(children, box) =>
         children.foreach { c =>
-          if (space.contains(c.geom)) buf.append(c)
+          if (space.contains(c.geom) && f(c)) buf.append(c)
         }
       case Branch(children, box) =>
         children.foreach { c =>
@@ -230,6 +232,21 @@ sealed trait Node[A] extends Member {
     if (space.intersects(box)) recur(this)
     buf
   }
+
+  def foldSearch[B](space: Box, init: B)(f: (B, Entry[A]) => B): B =
+    searchIterator(space, _ => true).foldLeft(init)(f)
+
+  def searchIterator(space: Box, f: Entry[A] => Boolean): Iterator[Entry[A]] =
+    if (children.isEmpty || !box.contains(space)) {
+      Iterator.empty
+    } else {
+      this match {
+        case Leaf(cs, _) =>
+          cs.iterator.filter(c => space.contains(c.geom) && f(c))
+        case Branch(cs, _) =>
+          cs.iterator.flatMap(c => c.searchIterator(space, f))
+      }
+    }
 
   /**
    * 
@@ -324,7 +341,14 @@ sealed trait Node[A] extends Member {
    * match an Entry(pt, x) if entry.value == x.value.
    */
   def contains(entry: Entry[A]): Boolean =
-    search(entry.geom.toBox).contains(entry)
+    searchIterator(entry.geom.toBox, _ == entry).nonEmpty
+
+  def map[B](f: A => B): Node[B] = this match {
+    case Leaf(cs, box) =>
+      Leaf(cs.map(e => Entry(e.geom, f(e.value))), box)
+    case Branch(cs, box) =>
+      Branch(cs.map(_.map(f)), box)
+  }
 }
 
 case class Branch[A](children: Vector[Node[A]], box: Box) extends Node[A] {

@@ -22,8 +22,7 @@ class RTreeCheck extends PropSpec with ShouldMatchers with GeneratorDrivenProper
   val dx = xmax - ymin
   val dy = ymax - ymin
   
-  //def isFinite(n: Float) = !n.isInfinite && !n.isNaN && n.abs < 1.0E200
-  def isFinite(n: Float) = !n.isInfinite && !n.isNaN && n.abs < 1.0E100
+  def isFinite(n: Float) = !n.isInfinite && !n.isNaN
 
   implicit val arbpoint = Arbitrary(for {
     x <- arbitrary[Float].suchThat(isFinite)

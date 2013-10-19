@@ -75,7 +75,26 @@ case class RTree[A](root: Node[A], size: Int) {
    * Return a sequence of all entries found in the given search space.
    */
   def search(space: Box): Seq[Entry[A]] =
-    root.search(space)
+    root.search(space, _ => true)
+
+  /**
+   * Return a sequence of all entries found in the given search space.
+   */
+  def search(space: Box, f: Entry[A] => Boolean): Seq[Entry[A]] =
+    root.search(space, f)
+
+  /**
+   * Construct a result an initial value, the entries found in a
+   * search space, and a binary function `f`.
+   * 
+   *   rtree.foldSearch(space, init)(f)
+   * 
+   * is equivalent to (but more efficient than):
+   * 
+   *   rtree.search(space).foldLeft(init)(f)
+   */
+  def foldSearch[B](space: Box, init: B)(f: (B, Entry[A]) => B): B =
+    root.foldSearch(space, init)(f)
 
   /**
    * Return a sequence of all entries found in the given search space.
@@ -120,6 +139,12 @@ case class RTree[A](root: Node[A], size: Int) {
    */
   def contains(entry: Entry[A]): Boolean =
     root.contains(entry)
+
+  /**
+   * Map the entry values from A to B.
+   */
+  def map[B](f: A => B): RTree[B] =
+    RTree(root.map(f), size)
 
   /**
    * Return an iterator over all entries in the tree.
