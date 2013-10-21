@@ -61,8 +61,12 @@ object ArcheryBuild extends Build {
     javaOptions in run += "-Xmx4G",
 
     libraryDependencies ++= Seq(
-      "ichi.bench" % "thyme" % "0.1.1" from "http://plastic-idolatry.com/jars/thyme-0.1.1.jar"
-    )
+      "ichi.bench" % "thyme" % "0.1.1" from "http://plastic-idolatry.com/jars/thyme-0.1.1.jar",
+      "com.azavea.geotrellis" %% "geotrellis" % "0.8.2-RC2"
+    ),
+
+    resolvers += Resolver.sonatypeRepo("releases")
+
   ) ++ noPublish
 
   // aggregate top-level project

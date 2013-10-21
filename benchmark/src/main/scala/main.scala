@@ -6,6 +6,8 @@ import scala.util.Random.{nextFloat, nextInt, nextGaussian}
 
 import ichi.bench.Thyme
 
+import geotrellis.feature._
+
 object Main {
   val xmin, ymin = -5000F
   val xmax, ymax = 5000F
@@ -41,6 +43,17 @@ object Main {
       RTree(entries: _*)
       //entries.foldLeft(RTree.empty[Int])(_ insert _)
     }
+
+    val rt_geotrellis = th.pbench {
+      val index = SpatialIndex(entries)(p => (p.geom.x, p.geom.y))
+      index
+    }
+
+    println(s"\ngt: doing $num random searches (radius: $radius)")
+    val n1_gt = th.pbench {
+      boxes.foldLeft(0)((n, b) => n + rt_geotrellis.pointsInExtent(geotrellis.Extent(b.x, b.y, b.x2, b.y2)).length)       
+    }
+    println(s"found $n1_gt results")
 
     println(s"\ndoing $num random searches (radius: $radius)")
     val n1 = th.pbench {
