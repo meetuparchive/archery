@@ -21,6 +21,32 @@ object ArcheryBuild extends Build {
       "-language:_",
       "-feature"
     )
+  ) ++ publishSettings
+
+  lazy val publishSettings = Seq(
+    publishMavenStyle := true,
+    publishArtifact in Test := false,
+
+    publishTo := {
+      val nexus = "https://oss.sonatype.org/"
+      if (version.value.trim.endsWith("SNAPSHOT"))
+        Some("snapshots" at nexus + "content/repositories/snapshots")
+      else
+        Some("releases"  at nexus + "service/local/staging/deploy/maven2")
+    },
+
+    pomExtra := (
+<scm>
+  <url>git@github.com:meetup/archery.git</url>
+  <connection>scm:git:git@github.com:meetup/archery.git</connection>
+</scm>
+<developers>
+  <developer>
+    <id>non</id>
+    <name>Erik Osheim</name>
+    <url>http://github.com/non</url>
+  </developer>
+</developers>)
   )
 
   lazy val noPublish = Seq(
