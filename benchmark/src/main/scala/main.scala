@@ -6,7 +6,37 @@ import scala.util.Random.{nextFloat, nextInt, nextGaussian}
 
 import ichi.bench.Thyme
 
+import geotrellis.Extent
 import geotrellis.feature._
+
+case class HybridTree[A](base: SpatialIndex[Entry[A]], deleted: Set[Entry[A]], added: RTree[A]) {
+  def insert(e: Entry[A]): HybridTree[A] = {
+    HybridTree(base, deleted, added insert e)
+  }
+
+  def remove(e: Entry[A]): HybridTree[A] = {
+    if (deleted(e)) {
+      HybridTree(base, deleted, added remove e)
+    } else if (base.pointsInExtent(Extent(e.geom.x, e.geom.y, e.geom.x2, e.geom.y2)).contains(e)) {
+      HybridTree(base, deleted + e, added)
+    } else {
+      HybridTree(base, deleted, added remove e)
+    }
+  }
+
+  def search(b: Box): Seq[Entry[A]] = {
+    val xs = base.pointsInExtent(Extent(b.x, b.y, b.x2, b.y2)).filterNot(deleted)
+    val ys = added.search(b)
+    xs ++ ys
+  }
+}
+
+object HybridTree {
+  def apply[A](entries: Entry[A]*): HybridTree[A] = {
+    val base: SpatialIndex[Entry[A]] = SpatialIndex(entries)(p => (p.geom.x, p.geom.y))
+    HybridTree(base, Set.empty[Entry[A]], RTree.empty[A])
+  }
+}
 
 object Main {
   val xmin, ymin = -5000F
@@ -38,28 +68,33 @@ object Main {
 
   def main(args: Array[String]) {
     val th = Thyme.warmedBench(verbose = print)
-    println(s"\nbuilding rtree from $size entries")
+    println(s"\narchery: building tree from $size entries")
     val rt = th.pbench {
       RTree(entries: _*)
-      //entries.foldLeft(RTree.empty[Int])(_ insert _)
     }
 
+    println(s"\ngeotrellis: building tree from $size entries")
     val rt_geotrellis = th.pbench {
       val index = SpatialIndex(entries)(p => (p.geom.x, p.geom.y))
       index
     }
 
-    println(s"\ngt: doing $num random searches (radius: $radius)")
-    val n1_gt = th.pbench {
-      boxes.foldLeft(0)((n, b) => n + rt_geotrellis.pointsInExtent(geotrellis.Extent(b.x, b.y, b.x2, b.y2)).length)       
+    println(s"\nhybrid: building tree from $size entries")
+    val rt_hybrid = th.pbench {
+      HybridTree(entries: _*)
     }
-    println(s"found $n1_gt results")
 
-    println(s"\ndoing $num random searches (radius: $radius)")
+    println(s"\narchery: doing $num random searches (radius: $radius)")
     val n1 = th.pbench {
       boxes.foldLeft(0)((n, b) => n + rt.search(b).length)
     }
-    println(s"found $n1 results")
+    println(s"  found $n1 results")
+
+    println(s"\ngeotrellis: doing $num random searches (radius: $radius)")
+    val n1_gt = th.pbench {
+      boxes.foldLeft(0)((n, b) => n + rt_geotrellis.pointsInExtent(geotrellis.Extent(b.x, b.y, b.x2, b.y2)).length)       
+    }
+    println(s"  found $n1_gt results")
 
     println(s"\ndoing $num random searches with filter (radius: $radius)")
     val nx = th.pbench {
@@ -67,20 +102,36 @@ object Main {
     }
     println(s"found $nx results")
 
-    println(s"\ndoing $num counts")
+    println(s"\nhybrid: doing $num random searches (radius: $radius)")
+    val n1_h = th.pbench {
+      boxes.foldLeft(0)((n, b) => n + rt_hybrid.search(b).length)
+    }
+    println(s"  found $n1_h results")
+
+    println(s"\narchery: doing $num counts")
     val n2 = th.pbench {
       boxes.foldLeft(0)((n, b) => n + rt.count(b))
     }
     println(s"found $n2 results")
 
-    println(s"\nremoving $num entries")
+    println(s"\narchery: removing $num entries")
     th.pbench {
       entries.take(num).foldLeft(rt)(_ remove _)
     }
 
-    println(s"\ninserting $num entries")
+    // println(s"\nhybrid: removing $num entries")
+    // th.pbench {
+    //   entries.take(num).foldLeft(rt_hybrid)(_ remove _)
+    // }
+
+    println(s"\narchery: inserting $num entries")
     th.pbench {
       extra.foldLeft(rt)(_ insert _)
+    }
+
+    println(s"\nhybrid: inserting $num entries")
+    th.pbench {
+      extra.foldLeft(rt_hybrid)(_ insert _)
     }
   }
 }
