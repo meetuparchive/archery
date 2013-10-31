@@ -1,5 +1,7 @@
 import sbt._
 import sbt.Keys._
+import bintray.Plugin.bintraySettings
+import bintray.Keys._
 
 object ArcheryBuild extends Build {
 
@@ -9,8 +11,9 @@ object ArcheryBuild extends Build {
   override lazy val settings = super.settings ++ Seq(
     organization := "com.meetup",
     scalaVersion := "2.10.2",
-    licenses := Seq("BSD-style" -> url("http://opensource.org/licenses/MIT")),
+    licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
     homepage := Some(url("http://github.com/meetup/archery")),
+    version := "0.1.0",
 
     scalacOptions ++= Seq(
       //"-no-specialization", // use this to build non-specialized jars
@@ -24,29 +27,7 @@ object ArcheryBuild extends Build {
   ) ++ publishSettings
 
   lazy val publishSettings = Seq(
-    publishMavenStyle := true,
-    publishArtifact in Test := false,
-
-    publishTo := {
-      val nexus = "https://oss.sonatype.org/"
-      if (version.value.trim.endsWith("SNAPSHOT"))
-        Some("snapshots" at nexus + "content/repositories/snapshots")
-      else
-        Some("releases"  at nexus + "service/local/staging/deploy/maven2")
-    },
-
-    pomExtra := (
-<scm>
-  <url>git@github.com:meetup/archery.git</url>
-  <connection>scm:git:git@github.com:meetup/archery.git</connection>
-</scm>
-<developers>
-  <developer>
-    <id>non</id>
-    <name>Erik Osheim</name>
-    <url>http://github.com/non</url>
-  </developer>
-</developers>)
+    bintrayOrganization in bintray := Some("meetup")
   )
 
   lazy val noPublish = Seq(
@@ -65,7 +46,7 @@ object ArcheryBuild extends Build {
       scalaTest % "test",
       scalaCheck % "test"
     )
-  )
+  ) ++ bintraySettings
 
   // benchmark project
   lazy val benchmark = Project("benchmark", file("benchmark")).
