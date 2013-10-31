@@ -54,7 +54,7 @@ object ArcheryBuild extends Build {
     dependsOn(core)
 
   lazy val benchmarkSettings = Seq(
-    name := "spire-benchmark",
+    name := "archery-benchmark",
 
     fork in run := true,
 
