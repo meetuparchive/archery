@@ -1,5 +1,7 @@
 import sbt._
 import sbt.Keys._
+import bintray.Plugin.bintraySettings
+import bintray.Keys._
 
 object ArcheryBuild extends Build {
 
@@ -9,8 +11,9 @@ object ArcheryBuild extends Build {
   override lazy val settings = super.settings ++ Seq(
     organization := "com.meetup",
     scalaVersion := "2.10.2",
-    licenses := Seq("BSD-style" -> url("http://opensource.org/licenses/MIT")),
+    licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
     homepage := Some(url("http://github.com/meetup/archery")),
+    version := "0.1.0",
 
     scalacOptions ++= Seq(
       //"-no-specialization", // use this to build non-specialized jars
@@ -21,6 +24,10 @@ object ArcheryBuild extends Build {
       "-language:_",
       "-feature"
     )
+  ) ++ publishSettings
+
+  lazy val publishSettings = Seq(
+    bintrayOrganization in bintray := Some("meetup")
   )
 
   lazy val noPublish = Seq(
@@ -39,7 +46,7 @@ object ArcheryBuild extends Build {
       scalaTest % "test",
       scalaCheck % "test"
     )
-  )
+  ) ++ bintraySettings
 
   // benchmark project
   lazy val benchmark = Project("benchmark", file("benchmark")).
@@ -47,7 +54,7 @@ object ArcheryBuild extends Build {
     dependsOn(core)
 
   lazy val benchmarkSettings = Seq(
-    name := "spire-benchmark",
+    name := "archery-benchmark",
 
     fork in run := true,
 
