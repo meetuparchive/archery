@@ -10,6 +10,32 @@ this operation is quite efficient.
 
 The name "archery" is a corruption of the word "R-Tree".
 
+### Getting Archery
+
+Archery is published to [bintray](https://bintray.com/) using the
+[bintray-sbt](https://github.com/softprops/bintray-sbt) plugin.
+
+If you use SBT, you can include Archery via the following `build.sbt`
+snippets:
+
+```
+resolvers += "bintray/meetup" at "http://dl.bintray.com/meetup/maven"
+
+libraryDependencies += "com.meetup" %% "archery" % "0.1.0"
+```
+
+For Maven or Ivy, you'll use the same resolver URL but you'll need to
+use a slightly different artifact name:
+
+```
+org=com.meetup
+name=archery_2.10
+rev=0.1.0
+```
+
+Archery is currently published against Scala 2.10, although a future
+release may include 2.9 support as well.
+
 ### Example Usage
 
 ```scala
