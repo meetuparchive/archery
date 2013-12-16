@@ -521,20 +521,25 @@ object Node {
     // find the two geometries that have the most space between them
     // in this particular dimension. the sequence is (lower, upper) points
     def handleDimension(pairs: IndexedSeq[(Float, Float)]): (Float, Int, Int) = {
-      var z1, z3 = pairs(0)._1
-      var z2, z4 = pairs(0)._2
+      val (a0, b0) = pairs(0)
+      var amin = a0 // min lower coord
+      var amax = a0 // max lower coord
+      var bmin = b0 // min upper coord
+      var bmax = b0 // max upper coord
+
       var left = 0
       var right = 0
       var i = 1
       while (i < pairs.length) {
-        val (x1, x2) = pairs(i)
-        if (x1 < z1) z1 = x1
-        if (x2 > z4) z4 = x2
-        if (x1 > z3) { z3 = x1; right = i }
-        if (x2 < z2) { z2 = x2; left = i }
+        val (a, b) = pairs(i)
+        if (a < amin) { amin = a }
+        if (a > amax) { amax = a; right = i }
+        if (b > bmax) { bmax = b }
+        if (b < bmin) { bmin = b; left = i }
         i += 1
       }
-      if (z4 != z1) ((z3 - z2) / (z4 - z1), left, right) else (0.0F, 0, 1)
+
+      if (left != right) ((bmin - amax) / (bmax - amin), left, right) else (0.0F, 0, 1)
     }
 
     // get back the maximum distance in each dimension, and the coords
