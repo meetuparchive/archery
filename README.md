@@ -58,7 +58,7 @@ val tree3: RTree[String] = tree2.remove(bob)
 
 // search from (0,-4) to (10,6), will find "doug"
 val bbox: Box = Box(0F, -4F, 10F, 6F)
-val results: Vector[Entry[String]] = tree3.search(bbox)
+val results: Seq[Entry[String]] = tree3.search(bbox)
 
 // we can also just ask how many matching entries exist
 val n: Int = tree3.count(bbox)
