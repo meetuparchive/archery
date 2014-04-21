@@ -42,15 +42,11 @@ sealed trait Geom {
 
   def upperRight: Point = Point(x2, y2)
 
-  def contains(geom: Geom): Boolean = geom match {
-    case pt: Point =>
-      x <= pt.x && pt.x <= x2 && y <= pt.y && pt.y <= y2
-    case box: Box =>
-      x <= box.x && box.x2 <= x2 && y <= box.y && box.y2 <= y2
-  }
+  def contains(geom: Geom): Boolean =
+    x <= geom.x && geom.x2 <= x2 && y <= geom.y && geom.y2 <= y2
 
-  def intersects(box: Box): Boolean =
-    x <= box.x2 && box.x <= x2 && y <= box.y2 && box.y <= y2
+  def intersects(geom: Geom): Boolean =
+    x <= geom.x2 && geom.x <= x2 && y <= geom.y2 && geom.y <= y2
 
   def wraps(geom: Geom): Boolean =
     x < geom.x && geom.x2 < x2 && y < geom.y && geom.y2 < y2

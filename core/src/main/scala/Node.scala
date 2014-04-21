@@ -222,7 +222,7 @@ sealed trait Node[A] extends Member { self =>
     def recur(node: Node[A]): Unit = node match {
       case Leaf(children, box) =>
         children.foreach { c =>
-          if (space.contains(c.geom) && f(c)) buf.append(c)
+          if (f(c)) buf.append(c)
         }
       case Branch(children, box) =>
         children.foreach { c =>
