@@ -203,26 +203,41 @@ sealed trait Node[A] extends Member { self =>
    * the insertions until after the removal is complete and then readd
    * them in RTree. While 'es' will usually be quite small, it's
    * possible that in some cases it may be very large.
-   * 
-   * TODO: To avoid allocating large vectors, we could create a custom
-   * collection which could be pieced together out of vectors and
-   * singletons.
    */
   def remove(entry: Entry[A]): Option[(Joined[Entry[A]], Option[Node[A]])]
 
   /**
-   * Performs a search for all entries in the search space.
+   * Search for all entries contained in the search space.
    * 
    * Points on the boundary of the search space will be included.
    */
-  def search(space: Box, f: Entry[A] => Boolean): Seq[Entry[A]] = {
+  def search(space: Box, f: Entry[A] => Boolean): Seq[Entry[A]] =
+    genericSearch(space, space.contains, f)
+
+  /**
+   * Search for all entries intersecting the search space.
+   * 
+   * Points on the boundary of the search space will be included.
+   */
+  def searchIntersection(space: Box, f: Entry[A] => Boolean): Seq[Entry[A]] =
+    genericSearch(space, space.intersects, f)
+
+  /**
+   * Search for all entries given a search space, spatial checking
+   * function, and criteria function.
+   * 
+   * This method abstracts search and searchIntersection, where the
+   * `check` function is either space.contains or space.intersects,
+   * respectively.
+   */
+  def genericSearch(space: Box, check: Geom => Boolean, f: Entry[A] => Boolean): Seq[Entry[A]] = {
     if (!space.isFinite) return Seq.empty
 
     val buf = ArrayBuffer.empty[Entry[A]]
     def recur(node: Node[A]): Unit = node match {
       case Leaf(children, box) =>
         children.foreach { c =>
-          if (f(c)) buf.append(c)
+          if (check(c.geom) && f(c)) buf.append(c)
         }
       case Branch(children, box) =>
         children.foreach { c =>
@@ -233,9 +248,18 @@ sealed trait Node[A] extends Member { self =>
     buf
   }
 
+  /**
+   * Combine the results of a search(space) into a single result.
+   */
   def foldSearch[B](space: Box, init: B)(f: (B, Entry[A]) => B): B =
     searchIterator(space, _ => true).foldLeft(init)(f)
 
+  /**
+   * Return an iterator over the results of a search.
+   * 
+   * This produces the same elements as search(space, f).iterator(),
+   * without having to build an entire vector at once.
+   */
   def searchIterator(space: Box, f: Entry[A] => Boolean): Iterator[Entry[A]] =
     if (children.isEmpty || !box.contains(space)) {
       Iterator.empty
@@ -249,7 +273,9 @@ sealed trait Node[A] extends Member { self =>
     }
 
   /**
+   * Find the closest entry to `pt` that is within `d0`.
    * 
+   * This method will either return Some((distance, entry)) or None.
    */
   def nearest(pt: Point, d0: Double): Option[(Double, Entry[A])] = {
     var dist: Double = d0
@@ -279,7 +305,11 @@ sealed trait Node[A] extends Member { self =>
   }
 
   /**
+   * Find the closest `k` entries to `pt` that are within `d0`, and
+   * add them to the given priority queue `pq`.
    * 
+   * This method returns the distance of the farthest entry that is
+   * still included.
    */
   def nearestK(pt: Point, k: Int, d0: Double, pq: PriorityQueue[(Double, Entry[A])]): Double = {
     var dist: Double = d0
@@ -307,7 +337,7 @@ sealed trait Node[A] extends Member { self =>
 
 
   /**
-   * 
+   * Count the number of entries contained within `space`.
    */
   def count(space: Box): Int = {
     if (!space.isFinite) return 0
@@ -343,6 +373,10 @@ sealed trait Node[A] extends Member { self =>
   def contains(entry: Entry[A]): Boolean =
     searchIterator(entry.geom.toBox, _ == entry).nonEmpty
 
+  /**
+   * Transform each entry's value using the given `f`, returning a new
+   * node.
+   */
   def map[B](f: A => B): Node[B] = this match {
     case Leaf(cs, box) =>
       Leaf(cs.map(e => Entry(e.geom, f(e.value))), box)
