@@ -1,5 +1,12 @@
 package archery
 
+/**
+ * This is a small ADT that we use to avoid building too many
+ * intermediate vectors.
+ *
+ * It allows us to concatenate a whole bunch of vectors or single
+ * elements cheaply, and then iterate over them later.
+ */
 sealed trait Joined[A] extends Iterable[A] {
   override def isEmpty: Boolean = false
   def iterator: Iterator[A]

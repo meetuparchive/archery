@@ -136,16 +136,16 @@ class RTreeCheck extends PropSpec with ShouldMatchers with GeneratorDrivenProper
     }
   }
 
-  property("rtree.searchIntersecting works") {
+  property("rtree.searchIntersection works") {
     forAll { (es: List[Entry[Int]], p: Point) =>
       val rt = build(es)
 
       val box1 = bound(p, 10)
-      rt.searchIntersecting(box1).toSet should be === es.filter(e => box1.intersects(e.geom)).toSet
+      rt.searchIntersection(box1).toSet should be === es.filter(e => box1.intersects(e.geom)).toSet
 
       es.foreach { e =>
         val box2 = bound(e.geom, 10)
-        rt.searchIntersecting(box2).toSet should be === es.filter(e => box2.intersects(e.geom)).toSet
+        rt.searchIntersection(box2).toSet should be === es.filter(e => box2.intersects(e.geom)).toSet
       }
     }
   }
