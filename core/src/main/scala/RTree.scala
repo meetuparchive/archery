@@ -86,13 +86,13 @@ case class RTree[A](root: Node[A], size: Int) {
   /**
    * Return a sequence of all entries intersecting the given search space.
    */
-  def searchIntersecting(space: Box): Seq[Entry[A]] =
+  def searchIntersection(space: Box): Seq[Entry[A]] =
     root.searchIntersection(space, _ => true)
 
   /**
    * Return a sequence of all entries intersecting the given search space.
    */
-  def searchIntersecting(space: Box, f: Entry[A] => Boolean): Seq[Entry[A]] =
+  def searchIntersection(space: Box, f: Entry[A] => Boolean): Seq[Entry[A]] =
     root.searchIntersection(space, f)
 
   /**
