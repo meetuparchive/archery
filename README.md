@@ -21,20 +21,20 @@ snippets:
 ```
 resolvers += "bintray/meetup" at "http://dl.bintray.com/meetup/maven"
 
-libraryDependencies += "com.meetup" %% "archery" % "0.1.0"
+libraryDependencies += "com.meetup" %% "archery" % "0.3.0"
 ```
 
-For Maven or Ivy, you'll use the same resolver URL but you'll need to
-use a slightly different artifact name:
+For Maven or Ivy, you'll use the same resolver URL but you'll need a
+slightly different artifact name (the example is for Scala 2.10):
 
 ```
 org=com.meetup
 name=archery_2.10
-rev=0.1.0
+rev=0.3.0
 ```
 
-Archery is currently published against Scala 2.10, although a future
-release may include 2.9 support as well.
+Archery is currently published against Scala 2.10 and Scala 2.11,
+although a future release may include 2.9 support as well.
 
 ### Example Usage
 
@@ -85,11 +85,11 @@ The benchmarks are written against Rex Kerr's excellent library
 
 ### License
 
-Archery is available to you under the MIT license. See the `COPYING` file for
-details.
+Archery is available to you under the MIT license. See the
+[COPYING](COPYING) file for details.
 
 ### Credits
 
 Archery is maintained by Erik Osheim.
 
-Copyright (c) 2013 Meetup Inc.
+Copyright (c) 2013-2014 Meetup Inc.
