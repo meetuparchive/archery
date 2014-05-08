@@ -5,18 +5,18 @@ import bintray.Keys._
 
 object ArcheryBuild extends Build {
 
-  lazy val scalaTest = "org.scalatest" %% "scalatest" % "1.9.1"
-  lazy val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.10.0"
+  lazy val scalaTest = "org.scalatest" %% "scalatest" % "2.1.3"
+  lazy val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.11.3"
 
   override lazy val settings = super.settings ++ Seq(
     organization := "com.meetup",
-    scalaVersion := "2.10.2",
+    scalaVersion := "2.10.4",
     licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
     homepage := Some(url("http://github.com/meetup/archery")),
     version := "0.1.0",
+    crossScalaVersions := Seq("2.10.4", "2.11.0"),
 
     scalacOptions ++= Seq(
-      //"-no-specialization", // use this to build non-specialized jars
       "-Yinline-warnings",
       "-deprecation",
       "-unchecked",

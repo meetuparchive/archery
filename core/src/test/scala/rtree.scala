@@ -4,7 +4,6 @@ import scala.collection.mutable.ArrayBuffer
 import scala.math.{ceil, min, max}
 import scala.util.Random.nextFloat
 
-import org.scalatest.matchers.ShouldMatchers
 import org.scalacheck.Arbitrary._
 import org.scalatest._
 import prop._
@@ -13,7 +12,7 @@ import org.scalacheck._
 import Gen._
 import Arbitrary.arbitrary
 
-class RTreeCheck extends PropSpec with ShouldMatchers with GeneratorDrivenPropertyChecks {
+class RTreeCheck extends PropSpec with Matchers with GeneratorDrivenPropertyChecks {
 
   val xmin = -14030169.0F
   val ymin =   2873645.0F
@@ -53,16 +52,16 @@ class RTreeCheck extends PropSpec with ShouldMatchers with GeneratorDrivenProper
   property("rtree.insert works") {
     forAll { (es: List[Entry[Int]]) =>
       val rt = build(es)
-      rt.root.entries.toSet should be === es.toSet
+      rt.root.entries.toSet shouldBe es.toSet
     }
   }
 
   property("rtree.contains works") {
     forAll { (es: List[Entry[Int]], e: Entry[Int]) =>
       val rt = build(es)
-      es.forall(rt.contains) should be === true
+      es.forall(rt.contains) shouldBe true
 
-      rt.contains(e) should be === es.contains(e)
+      rt.contains(e) shouldBe es.contains(e)
     }
   }
 
@@ -71,7 +70,7 @@ class RTreeCheck extends PropSpec with ShouldMatchers with GeneratorDrivenProper
       val rt = build(es)
 
       val rt2 = es.foldLeft(rt)(_ remove _)
-      rt2.root.entries.isEmpty should be === true
+      rt2.root.entries.isEmpty shouldBe true
     }
   }
 
@@ -90,11 +89,11 @@ class RTreeCheck extends PropSpec with ShouldMatchers with GeneratorDrivenProper
       shuffle(buf)
       var rt = build(es)
       while (buf.nonEmpty) {
-        buf.toSet should be === rt.entries.toSet
+        buf.toSet shouldBe rt.entries.toSet
         val x = buf.remove(0)
         rt = rt.remove(x)
       }
-      buf.toSet should be === rt.entries.toSet
+      buf.toSet shouldBe rt.entries.toSet
     }
   }
 
@@ -110,15 +109,15 @@ class RTreeCheck extends PropSpec with ShouldMatchers with GeneratorDrivenProper
       val rt = build(es)
       val nil = Seq.empty[Entry[Int]]
 
-      rt.search(Box(Float.PositiveInfinity, 3F, 9F, 9F)) should be === nil
-      rt.search(Box(2F, Float.NaN, 9F, 9F)) should be === nil
-      rt.search(Box(2F, 3F, Float.NegativeInfinity, 9F)) should be === nil
-      rt.search(Box(2F, 3F, 9F, Float.NaN)) should be === nil
+      rt.search(Box(Float.PositiveInfinity, 3F, 9F, 9F)) shouldBe nil
+      rt.search(Box(2F, Float.NaN, 9F, 9F)) shouldBe nil
+      rt.search(Box(2F, 3F, Float.NegativeInfinity, 9F)) shouldBe nil
+      rt.search(Box(2F, 3F, 9F, Float.NaN)) shouldBe nil
 
-      rt.count(Box(Float.PositiveInfinity, 3F, 9F, 9F)) should be === 0
-      rt.count(Box(2F, Float.NaN, 9F, 9F)) should be === 0
-      rt.count(Box(2F, 3F, Float.NegativeInfinity, 9F)) should be === 0
-      rt.count(Box(2F, 3F, 9F, Float.NaN)) should be === 0
+      rt.count(Box(Float.PositiveInfinity, 3F, 9F, 9F)) shouldBe 0
+      rt.count(Box(2F, Float.NaN, 9F, 9F)) shouldBe 0
+      rt.count(Box(2F, 3F, Float.NegativeInfinity, 9F)) shouldBe 0
+      rt.count(Box(2F, 3F, 9F, Float.NaN)) shouldBe 0
     }
   }
 
@@ -127,11 +126,11 @@ class RTreeCheck extends PropSpec with ShouldMatchers with GeneratorDrivenProper
       val rt = build(es)
 
       val box1 = bound(p, 10)
-      rt.search(box1).toSet should be === es.filter(e => box1.contains(e.geom)).toSet
+      rt.search(box1).toSet shouldBe es.filter(e => box1.contains(e.geom)).toSet
 
       es.foreach { e =>
         val box2 = bound(e.geom, 10)
-        rt.search(box2).toSet should be === es.filter(e => box2.contains(e.geom)).toSet
+        rt.search(box2).toSet shouldBe es.filter(e => box2.contains(e.geom)).toSet
       }
     }
   }
@@ -141,11 +140,11 @@ class RTreeCheck extends PropSpec with ShouldMatchers with GeneratorDrivenProper
       val rt = build(es)
 
       val box1 = bound(p, 10)
-      rt.searchIntersection(box1).toSet should be === es.filter(e => box1.intersects(e.geom)).toSet
+      rt.searchIntersection(box1).toSet shouldBe es.filter(e => box1.intersects(e.geom)).toSet
 
       es.foreach { e =>
         val box2 = bound(e.geom, 10)
-        rt.searchIntersection(box2).toSet should be === es.filter(e => box2.intersects(e.geom)).toSet
+        rt.searchIntersection(box2).toSet shouldBe es.filter(e => box2.intersects(e.geom)).toSet
       }
     }
   }
@@ -154,13 +153,13 @@ class RTreeCheck extends PropSpec with ShouldMatchers with GeneratorDrivenProper
     forAll { (es: List[Entry[Int]], p: Point) =>
       val rt = build(es)
       if (es.isEmpty) {
-        rt.nearest(p) should be === None
+        rt.nearest(p) shouldBe None
       } else {
         val e = es.min(Ordering.by((e: Entry[Int]) => e.geom.distance(p)))
         val d = e.geom.distance(p)
         // it's possible that several points are tied for closest
         // in these cases, the distances still must be equal.
-        rt.nearest(p).map(_.geom.distance(p)) should be === Some(d)
+        rt.nearest(p).map(_.geom.distance(p)) shouldBe Some(d)
       }
     }
   }
@@ -172,7 +171,7 @@ class RTreeCheck extends PropSpec with ShouldMatchers with GeneratorDrivenProper
 
       val as = es.map(_.geom.distance(p)).sorted.take(k).toVector
       val bs = rt.nearestK(p, k).map(_.geom.distance(p))
-      as should be === bs
+      as shouldBe bs
     }
   }
 
@@ -187,7 +186,7 @@ class RTreeCheck extends PropSpec with ShouldMatchers with GeneratorDrivenProper
         case a :: as =>
           val rt2 = a.test(rt)
           val es2 = a.control(es)
-          rt2.entries.toSet should be === es2.toSet
+          rt2.entries.toSet shouldBe es2.toSet
           run(rt2, es2)(as)
         case Nil =>
           ()
