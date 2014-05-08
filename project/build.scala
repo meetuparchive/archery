@@ -13,7 +13,7 @@ object ArcheryBuild extends Build {
     scalaVersion := "2.10.4",
     licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
     homepage := Some(url("http://github.com/meetup/archery")),
-    version := "0.1.0",
+    version := "0.3.0",
     crossScalaVersions := Seq("2.10.4", "2.11.0"),
 
     scalacOptions ++= Seq(
