@@ -10,19 +10,11 @@ import geotrellis.Extent
 import geotrellis.feature._
 
 case class HybridTree[A](base: SpatialIndex[Entry[A]], deleted: Set[Entry[A]], added: RTree[A]) {
-  def insert(e: Entry[A]): HybridTree[A] = {
+  def insert(e: Entry[A]): HybridTree[A] =
     HybridTree(base, deleted, added insert e)
-  }
 
-  def remove(e: Entry[A]): HybridTree[A] = {
-    if (deleted(e)) {
-      HybridTree(base, deleted, added remove e)
-    } else if (base.pointsInExtent(Extent(e.geom.x, e.geom.y, e.geom.x2, e.geom.y2)).contains(e)) {
-      HybridTree(base, deleted + e, added)
-    } else {
-      HybridTree(base, deleted, added remove e)
-    }
-  }
+  def remove(e: Entry[A]): HybridTree[A] =
+    HybridTree(base, deleted + e, added remove e)
 
   def search(b: Box): Seq[Entry[A]] = {
     val xs = base.pointsInExtent(Extent(b.x, b.y, b.x2, b.y2)).filterNot(deleted)
@@ -33,7 +25,7 @@ case class HybridTree[A](base: SpatialIndex[Entry[A]], deleted: Set[Entry[A]], a
 
 object HybridTree {
   def apply[A](entries: Entry[A]*): HybridTree[A] = {
-    val base: SpatialIndex[Entry[A]] = SpatialIndex(entries)(p => (p.geom.x, p.geom.y))
+    val base = SpatialIndex(entries)(p => (p.geom.x, p.geom.y))
     HybridTree(base, Set.empty[Entry[A]], RTree.empty[A])
   }
 }
