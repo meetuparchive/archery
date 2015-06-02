@@ -67,7 +67,7 @@ assert(results.length == n)
 
 ### Contributing
 
-Building this project requires SBT 0.13.0.
+Building this project requires SBT 0.13.x.
 
 After you launch SBT, you can run the following commands:
 
@@ -92,4 +92,4 @@ Archery is available to you under the MIT license. See the
 
 Archery is maintained by Erik Osheim.
 
-Copyright (c) 2013-2014 Meetup Inc.
+Copyright (c) 2013-2015 Meetup Inc.
