@@ -2,7 +2,8 @@ package archery
 
 import scala.collection.mutable.ArrayBuffer
 import scala.math.{ceil, min, max}
-import scala.util.Random.nextFloat
+import scala.util.Random.{nextGaussian, nextInt}
+import scala.util.Try
 
 import org.scalacheck.Arbitrary._
 import org.scalatest._
@@ -20,39 +21,79 @@ class RTreeCheck extends PropSpec with Matchers with GeneratorDrivenPropertyChec
   val ymax =   6226366.0F
   val dx = xmax - ymin
   val dy = ymax - ymin
-  
-  def isFinite(n: Float) = !n.isInfinite && !n.isNaN
 
-  implicit val arbpoint = Arbitrary(for {
-    x <- arbitrary[Float].suchThat(isFinite)
-    y <- arbitrary[Float].suchThat(isFinite)
-  } yield {
-    Point(xmin + dx * (x.abs % 1.0F), ymin + dy * (y.abs % 1.0F))
-  })
+  val finite: Gen[Float] =
+    arbitrary[Float].suchThat(n => !n.isInfinite && !n.isNaN)
 
-  implicit val arbbox = Arbitrary(for {
-    x1 <- arbitrary[Float].suchThat(isFinite)
-    x2 <- arbitrary[Float].suchThat(isFinite)
-    y1 <- arbitrary[Float].suchThat(isFinite)
-    y2 <- arbitrary[Float].suchThat(isFinite)
-  } yield {
-    Box(min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2))
-  })
+  implicit val ordering: Ordering[Entry[Int]] =
+    Ordering.by(e => (e.geom.x, e.geom.y, e.geom.x2, e.geom.y2, e.value))
 
-  implicit val arbentry = Arbitrary(for {
-    either <- arbitrary[Either[Point, Box]]
-    n <- arbitrary[Int]
-  } yield {
-    Entry(either.fold(identity, identity), n)
-  })
+  implicit val arbpoint: Arbitrary[Point] =
+    Arbitrary(for {
+      x <- finite
+      y <- finite
+    } yield {
+      Point(xmin + dx * (x.abs % 1.0F), ymin + dy * (y.abs % 1.0F))
+    })
 
-  def build(es: List[Entry[Int]]): RTree[Int] =
-    es.foldLeft(RTree.empty[Int])(_ insert _)
+  implicit val arbbox: Arbitrary[Box] =
+    Arbitrary(for {
+      x1 <- finite
+      x2 <- finite
+      y1 <- finite
+      y2 <- finite
+    } yield {
+      Box(min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2))
+    })
+
+  implicit val arbentry: Arbitrary[Entry[Int]] =
+    Arbitrary(for {
+      either <- arbitrary[Either[Point, Box]]
+      n <- arbitrary[Int]
+    } yield {
+      Entry(either.fold(identity, identity), n)
+    })
+
+  def build(es: Seq[Entry[Int]]): RTree[Int] =
+    RTree(es: _*)
+
+  def gaussianPoint(): Point =
+    Point(nextGaussian.toFloat * 100 + 1000, nextGaussian.toFloat * 100 - 1000)
+
+  def gaussianBox(): Box = {
+    val xa = nextGaussian.toFloat * 100 + 1000
+    val xb = nextGaussian.toFloat * 100 + 1000
+    val ya = nextGaussian.toFloat * 100 - 1000
+    val yb = nextGaussian.toFloat * 100 - 1000
+    Box(xa min xb, ya min yb, xa max xb, ya max yb)
+  }
 
   property("rtree.insert works") {
-    forAll { (es: List[Entry[Int]]) =>
-      val rt = build(es)
-      rt.root.entries.toSet shouldBe es.toSet
+    forAll { (tpls: List[(Point, Int)]) =>
+      val es = tpls.map { case (p, n) => Entry(p, n) }
+      val rt1 = build(es)
+      rt1.root.entries.toSet shouldBe es.toSet
+
+      val rt2 = tpls.foldLeft(RTree.empty[Int]) { case (rt, (p, n)) =>
+        rt.insert(p.x, p.y, n)
+      }
+      rt1 shouldBe rt2
+    }
+  }
+
+  property("rtree.insertAll works") {
+    forAll { (es1: List[Entry[Int]], es2: List[Entry[Int]]) =>
+      val rt1 = build(es1 ++ es2)
+      val rt2 = build(es1).insertAll(es2)
+      rt1 shouldBe rt2
+    }
+  }
+
+  property("rtree.removeAll works") {
+    forAll { (es1: List[Entry[Int]], es2: List[Entry[Int]]) =>
+      val rt1 = build(es1)
+      val rt2 = build(es1 ++ es2).removeAll(es2)
+      rt1 shouldBe rt2
     }
   }
 
@@ -67,16 +108,19 @@ class RTreeCheck extends PropSpec with Matchers with GeneratorDrivenPropertyChec
 
   property("rtree.remove works") {
     forAll { (es: List[Entry[Int]]) =>
-      val rt = build(es)
-
-      val rt2 = es.foldLeft(rt)(_ remove _)
-      rt2.root.entries.isEmpty shouldBe true
+      var rt = build(es)
+      var size = rt.size
+      es.foreach { e =>
+        rt = rt.remove(e)
+        size -= 1
+        rt.size shouldBe size
+      }
     }
   }
 
   def shuffle[A](buf: ArrayBuffer[A]): Unit = {
     for (i <- 1 until buf.length) {
-      val j = scala.util.Random.nextInt(i)
+      val j = nextInt(i)
       val t = buf(i)
       buf(i) = buf(j)
       buf(j) = t
@@ -175,6 +219,41 @@ class RTreeCheck extends PropSpec with Matchers with GeneratorDrivenPropertyChec
     }
   }
 
+  property("rtree.count works") {
+    val es = (1 to 10000).map(n => Entry(gaussianPoint, n))
+    val rt = build(es)
+    val box = gaussianBox
+    rt.count(box) shouldBe es.filter(e => box.contains(e.geom)).size
+    val box2 = Box(1e10F, 1e10F, 1e11F, 1e11F)
+    rt.count(box2) shouldBe es.filter(e => box2.contains(e.geom)).size
+  }
+
+  property("rtree.map works") {
+    forAll { (es: List[Entry[Int]]) =>
+      val f = (x: Int) => x + 1
+      val rt = build(es)
+      val es2 = es.map(e => Entry(e.geom, f(e.value)))
+      rt.map(f) shouldBe build(es2)
+    }
+  }
+
+  property("rtree equals/hashCode work") {
+    forAll { (es1: List[Entry[Int]], e: Entry[Int]) =>
+      val es2 = ArrayBuffer(es1: _*)
+      shuffle(es2)
+      val (rt1, rt2) = (build(es1), build(es2))
+      rt1 shouldBe rt2
+      rt1.hashCode shouldBe rt2.hashCode
+      rt1 should not be (999)
+
+      val rt3 = rt1.insert(e)
+      rt3 should not be (rt1)
+      // this should only have a very small chance of failing,
+      // assuming RTree#hashCode is a good hashing function.
+      rt3.hashCode should not be (rt1.hashCode)
+    }
+  }
+
   sealed trait Action {
     def test(rt: RTree[Int]): RTree[Int]
     def control(es: List[Entry[Int]]): List[Entry[Int]]
@@ -211,17 +290,40 @@ class RTreeCheck extends PropSpec with Matchers with GeneratorDrivenPropertyChec
       }
   }
 
-  implicit val arbaction = Arbitrary(for {
-    e <- arbitrary[Entry[Int]]
-    b <- arbitrary[Boolean]
-  } yield {
-    val a: Action = if (b) Insert(e) else Remove(e)
-    a
-  })
+  implicit val arbaction: Arbitrary[Action] =
+    Arbitrary(for {
+      e <- arbitrary[Entry[Int]]
+      b <- arbitrary[Boolean]
+    } yield {
+      val a: Action = if (b) Insert(e) else Remove(e)
+      a
+    })
 
   property("ad-hoc rtree") {
     forAll { (es: List[Entry[Int]], as: List[Action]) =>
       Action.run(build(es), es)(as)
+    }
+  }
+
+  property("dense rtree") {
+    val es = (1 to 100000).map(n => Entry(gaussianPoint, n))
+    val rt = build(es)
+    rt.size shouldBe es.size
+    es.forall(rt.contains) shouldBe true
+
+    var rt0 = rt
+    var size = rt.size
+    es.foreach { e =>
+      rt0 = rt0.remove(e)
+      size -= 1
+      rt0.size shouldBe size
+    }
+  }
+
+  property("pretty-printing") {
+    forAll { (es: List[Entry[Int]]) =>
+      val rt = build(es)
+      Try(rt.pretty).isSuccess shouldBe true
     }
   }
 }
