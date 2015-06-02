@@ -13,12 +13,13 @@ object Constants {
 import Constants._
 
 /**
- * Abstract data type that has a geom member.
+ * Abstract data type that has a geom element.
  *
  * This generalizes Node[A] (the nodes of the tree) and Entry[A] (the
- * values being put in the tree).
+ * values being put in the tree). It functions like a structural type
+ * (but isn't one, because structural types are slow).
  */
-sealed trait Member {
+sealed abstract class HasGeom {
   def geom: Geom
 }
 
@@ -30,11 +31,11 @@ sealed trait Member {
  * of entries. This design is commmon to RTree implementations and it
  * seemed like a good idea to keep the nomenclature the same.
  */
-sealed trait Node[A] extends Member { self =>
+sealed abstract class Node[A] extends HasGeom { self =>
   def box: Box
   def geom: Geom = box
 
-  def children: Vector[Member]
+  def children: Vector[HasGeom]
 
   /**
    * Put all the entries this node contains (directly or indirectly)
@@ -444,7 +445,7 @@ case class Leaf[A](children: Vector[Entry[A]], box: Box) extends Node[A] {
  * reasonable equality definition. Otherwise things like remove and
  * contains may not work very well.
  */
-case class Entry[A](geom: Geom, value: A) extends Member
+case class Entry[A](geom: Geom, value: A) extends HasGeom
 
 object Node {
 
@@ -481,7 +482,7 @@ object Node {
    * bounding boxes. We are using a linear seeding strategy since it
    * is simple and has worked well for us in the past.
    */
-  def splitter[M <: Member](children: Vector[M]): ((Vector[M], Box), (Vector[M], Box)) = {
+  def splitter[M <: HasGeom](children: Vector[M]): ((Vector[M], Box), (Vector[M], Box)) = {
     val buf = ArrayBuffer(children: _*)
     val (seed1, seed2) = pickSeeds(buf)
 
@@ -548,7 +549,7 @@ object Node {
    * dimensions) might give better seeds but would be slower. This
    * seems to work OK for now.
    */
-  def pickSeeds[M <: Member](nodes: ArrayBuffer[M]): (M, M) = {
+  def pickSeeds[M <: HasGeom](nodes: ArrayBuffer[M]): (M, M) = {
 
     // find the two geometries that have the most space between them
     // in this particular dimension. the sequence is (lower, upper) points
