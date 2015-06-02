@@ -4,7 +4,7 @@ import scala.math.{min, max, sqrt}
 
 /**
  * Geometry represents a box (or point).
- * 
+ *
  * (x1, y1) is the lower left point and (x2, y2) is upper right. So
  * Box(1, 2, 5, 4) is at (1, 2) and is 4 wide and 2 high. Obviously
  * for points, (x1, y1) == (x2, y2) so both points are the same.

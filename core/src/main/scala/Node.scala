@@ -230,23 +230,22 @@ sealed trait Node[A] extends Member { self =>
    * `check` function is either space.contains or space.intersects,
    * respectively.
    */
-  def genericSearch(space: Box, check: Geom => Boolean, f: Entry[A] => Boolean): Seq[Entry[A]] = {
-    if (!space.isFinite) return Seq.empty
-
-    val buf = ArrayBuffer.empty[Entry[A]]
-    def recur(node: Node[A]): Unit = node match {
-      case Leaf(children, box) =>
-        children.foreach { c =>
-          if (check(c.geom) && f(c)) buf.append(c)
-        }
-      case Branch(children, box) =>
-        children.foreach { c =>
-          if (space.intersects(box)) recur(c)
-        }
+  def genericSearch(space: Box, check: Geom => Boolean, f: Entry[A] => Boolean): Seq[Entry[A]] =
+    if (!space.isFinite) Nil else {
+      val buf = ArrayBuffer.empty[Entry[A]]
+      def recur(node: Node[A]): Unit = node match {
+        case Leaf(children, box) =>
+          children.foreach { c =>
+            if (check(c.geom) && f(c)) buf.append(c)
+          }
+        case Branch(children, box) =>
+          children.foreach { c =>
+            if (space.intersects(box)) recur(c)
+          }
+      }
+      if (space.intersects(box)) recur(this)
+      buf
     }
-    if (space.intersects(box)) recur(this)
-    buf
-  }
 
   /**
    * Combine the results of a search(space) into a single result.
@@ -292,7 +291,7 @@ sealed trait Node[A] extends Member { self =>
       case Branch(children, box) =>
         val cs = children.map(node => (node.box.distance(pt), node)).sortBy(_._1)
         cs.foreach { case (d, node) =>
-          if (d >= dist) return result
+          if (d >= dist) return result //scalastyle:ignore
           node.nearest(pt, dist) match {
             case some @ Some((d, _)) =>
               dist = d
@@ -328,7 +327,7 @@ sealed trait Node[A] extends Member { self =>
       case Branch(children, box) =>
         val cs = children.map(node => (node.box.distance(pt), node)).sortBy(_._1)
         cs.foreach { case (d, node) =>
-          if (d >= dist) return dist
+          if (d >= dist) return dist //scalastyle:ignore
           dist = node.nearestK(pt, k, dist, pq)
         }
     }
@@ -339,30 +338,29 @@ sealed trait Node[A] extends Member { self =>
   /**
    * Count the number of entries contained within `space`.
    */
-  def count(space: Box): Int = {
-    if (!space.isFinite) return 0
-
-    def recur(node: Node[A]): Int = node match {
-      case Leaf(children, box) =>
-        var n = 0
-        var i = 0
-        while (i < children.length) {
-          if (space.contains(children(i).geom)) n += 1
-          i += 1
-        }
-        n
-      case Branch(children, box) =>
-        var n = 0
-        var i = 0
-        while (i < children.length) {
-          val c = children(i)
-          if (space.intersects(c.box)) n += recur(c)
-          i += 1
-        }
-        n
+  def count(space: Box): Int =
+    if (!space.isFinite) 0 else {
+      def recur(node: Node[A]): Int = node match {
+        case Leaf(children, box) =>
+          var n = 0
+          var i = 0
+          while (i < children.length) {
+            if (space.contains(children(i).geom)) n += 1
+            i += 1
+          }
+          n
+        case Branch(children, box) =>
+          var n = 0
+          var i = 0
+          while (i < children.length) {
+            val c = children(i)
+            if (space.intersects(c.box)) n += recur(c)
+            i += 1
+          }
+          n
+      }
+      if (space.intersects(box)) recur(this) else 0
     }
-    if (space.intersects(box)) recur(this) else 0
-  }
 
   /**
    * Determine if entry is contained in the tree.
@@ -423,7 +421,7 @@ case class Branch[A](children: Vector[Node[A]], box: Box) extends Node[A] {
 case class Leaf[A](children: Vector[Entry[A]], box: Box) extends Node[A] {
 
   def remove(entry: Entry[A]): Option[(Joined[Entry[A]], Option[Node[A]])] = {
-    if (!box.contains(entry.geom)) return None
+    if (!box.contains(entry.geom)) return None //scalastyle:ignore
     val i = children.indexOf(entry)
     if (i < 0) {
       None
