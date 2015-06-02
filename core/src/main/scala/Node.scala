@@ -14,7 +14,7 @@ import Constants._
 
 /**
  * Abstract data type that has a geom member.
- * 
+ *
  * This generalizes Node[A] (the nodes of the tree) and Entry[A] (the
  * values being put in the tree).
  */
@@ -24,7 +24,7 @@ sealed trait Member {
 
 /**
  * Abstract data type for nodes of the tree.
- * 
+ *
  * There are two types of Node: Branch and Leaf. Confusingly, leaves
  * don't actaully hold values, but rather a leaf contains a sequence
  * of entries. This design is commmon to RTree implementations and it
@@ -96,17 +96,17 @@ sealed trait Node[A] extends Member { self =>
 
   /**
    * Insert a new Entry into the tree.
-   * 
+   *
    * Since this node is immutable, the method will return a
    * replacement. There are two possible situations:
    *
    * 1. We can replace this node with a new node. This is the common
    *    case.
-   * 
+   *
    * 2. This node was already "full", so we can't just replace it with
    *    a single node. Instead, we will split this node into
    *    (presumably) two new nodes, and return a vector of them.
-   * 
+   *
    * The reason we are using vector here is that it simplifies the
    * implementation, and also because eventually we may support bulk
    * insertion, where more than two nodes might be returned.
@@ -181,24 +181,24 @@ sealed trait Node[A] extends Member { self =>
 
   /**
    * Remove this entry from the tree.
-   * 
+   *
    * The implementations for Leaf and Branch are somewhat involved, so
    * they are defined in each subclass.
-   * 
+   *
    * The return value can be understood as follows:
-   * 
+   *
    * 1. None: the entry was not found in this node. This is the most
    *    common case.
-   * 
+   *
    * 2. Some((es, None)): the entry was found, and this node was
    *    removed (meaning after removal it had too few other
    *    children). The 'es' vector are entries that need to be readded
    *    to the RTree.
-   * 
+   *
    * 3. Some((es, Some(node))): the entry was found, and this node
    *    should be replaced by 'node'. Like above, the 'es' vector
    *    contains entries that should be readded.
-   * 
+   *
    * Because adding entries may require rebalancing the tree, we defer
    * the insertions until after the removal is complete and then readd
    * them in RTree. While 'es' will usually be quite small, it's
@@ -208,7 +208,7 @@ sealed trait Node[A] extends Member { self =>
 
   /**
    * Search for all entries contained in the search space.
-   * 
+   *
    * Points on the boundary of the search space will be included.
    */
   def search(space: Box, f: Entry[A] => Boolean): Seq[Entry[A]] =
@@ -216,7 +216,7 @@ sealed trait Node[A] extends Member { self =>
 
   /**
    * Search for all entries intersecting the search space.
-   * 
+   *
    * Points on the boundary of the search space will be included.
    */
   def searchIntersection(space: Box, f: Entry[A] => Boolean): Seq[Entry[A]] =
@@ -225,7 +225,7 @@ sealed trait Node[A] extends Member { self =>
   /**
    * Search for all entries given a search space, spatial checking
    * function, and criteria function.
-   * 
+   *
    * This method abstracts search and searchIntersection, where the
    * `check` function is either space.contains or space.intersects,
    * respectively.
@@ -256,7 +256,7 @@ sealed trait Node[A] extends Member { self =>
 
   /**
    * Return an iterator over the results of a search.
-   * 
+   *
    * This produces the same elements as search(space, f).iterator(),
    * without having to build an entire vector at once.
    */
@@ -274,7 +274,7 @@ sealed trait Node[A] extends Member { self =>
 
   /**
    * Find the closest entry to `pt` that is within `d0`.
-   * 
+   *
    * This method will either return Some((distance, entry)) or None.
    */
   def nearest(pt: Point, d0: Double): Option[(Double, Entry[A])] = {
@@ -307,7 +307,7 @@ sealed trait Node[A] extends Member { self =>
   /**
    * Find the closest `k` entries to `pt` that are within `d0`, and
    * add them to the given priority queue `pq`.
-   * 
+   *
    * This method returns the distance of the farthest entry that is
    * still included.
    */
@@ -366,7 +366,7 @@ sealed trait Node[A] extends Member { self =>
 
   /**
    * Determine if entry is contained in the tree.
-   * 
+   *
    * This method depends upon reasonable equality for A. It can only
    * match an Entry(pt, x) if entry.value == x.value.
    */
@@ -405,7 +405,7 @@ case class Branch[A](children: Vector[Node[A]], box: Box) extends Node[A] {
               val b = contract(child.geom, cs.foldLeft(Box.empty)(_ expand _.geom))
               Some((es, Some(Branch(cs, b))))
             }
-            
+
           case Some((es, Some(node))) =>
             val cs = children.updated(i, node)
             val b = contract(child.geom, cs.foldLeft(Box.empty)(_ expand _.geom))
@@ -441,7 +441,7 @@ case class Leaf[A](children: Vector[Entry[A]], box: Box) extends Node[A] {
 
 /**
  * Represents a point with a value.
- * 
+ *
  * We frequently use value.== so it's important that A have a
  * reasonable equality definition. Otherwise things like remove and
  * contains may not work very well.
@@ -454,7 +454,7 @@ object Node {
 
   /**
    * Splits the children of a leaf node.
-   * 
+   *
    * See splitter for more information.
    */
   def splitLeaf[A](children: Vector[Entry[A]]): Vector[Leaf[A]] = {
@@ -464,7 +464,7 @@ object Node {
 
   /**
    * Splits the children of a branch node.
-   * 
+   *
    * See splitter for more information.
    */
   def splitBranch[A](children: Vector[Node[A]]): Vector[Branch[A]] = {
@@ -475,10 +475,10 @@ object Node {
   /**
    * Splits a collection of members into two new collections, grouped
    * according to the rtree algorithm.
-   * 
+   *
    * The results (a vector and a bounding box) will be used to create
    * new nodes.
-   * 
+   *
    * The goal is to minimize the area and overlap of the pairs'
    * bounding boxes. We are using a linear seeding strategy since it
    * is simple and has worked well for us in the past.
@@ -492,8 +492,8 @@ object Node {
     val nodes1 = ArrayBuffer(seed1)
     val nodes2 = ArrayBuffer(seed2)
 
-    def add1(node: M) { nodes1 += node; box1 = box1.expand(node.geom) }
-    def add2(node: M) { nodes2 += node; box2 = box2.expand(node.geom) }
+    def add1(node: M): Unit = { nodes1 += node; box1 = box1.expand(node.geom) }
+    def add2(node: M): Unit = { nodes2 += node; box2 = box2.expand(node.geom) }
 
     while (buf.nonEmpty) {
 
@@ -545,7 +545,7 @@ object Node {
    * Given a collection of members, we want to find the two that have
    * the greatest distance from each other in some dimension. This is
    * the "linear" strategy.
-   * 
+   *
    * Other strategies (like finding the greatest distance in both
    * dimensions) might give better seeds but would be slower. This
    * seems to work OK for now.
@@ -591,4 +591,3 @@ object Node {
     (node1, node2)
   }
 }
-
