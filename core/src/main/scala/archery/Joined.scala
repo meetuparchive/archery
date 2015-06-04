@@ -25,7 +25,7 @@ sealed trait Joined[A] extends Iterable[A] {
         val it1 = this.iterator
         val it2 = that.iterator
         while (it1.hasNext && it2.hasNext) {
-          if (it1.next != it2.next) return false
+          if (it1.next != it2.next) return false //scalastyle:off
         }
         it1.hasNext == it2.hasNext
       case _ =>
