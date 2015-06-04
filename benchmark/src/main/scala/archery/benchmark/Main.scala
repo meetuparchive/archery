@@ -1,4 +1,5 @@
 package archery
+package benchmark
 
 import scala.collection.mutable.ArrayBuffer
 import scala.math.{min, max}

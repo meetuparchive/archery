@@ -64,3 +64,5 @@ lazy val benchmark =
     libraryDependencies ++= Seq(
       "ichi.bench" % "thyme" % "0.1.1" from "http://plastic-idolatry.com/jars/thyme-0.1.1.jar"),
     resolvers += Resolver.sonatypeRepo("releases")))
+
+ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages := "archery\\.benchmark\\..*"
