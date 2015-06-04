@@ -7,34 +7,37 @@ import scala.math.{min, max}
  * Some useful constants that we don't want to hardcode.
  */
 object Constants {
+  // $COVERAGE-OFF$
   @inline final val MaxEntries = 50
+  // $COVERAGE-ON$
 }
 
 import Constants._
 
 /**
- * Abstract data type that has a geom member.
- * 
+ * Abstract data type that has a geom element.
+ *
  * This generalizes Node[A] (the nodes of the tree) and Entry[A] (the
- * values being put in the tree).
+ * values being put in the tree). It functions like a structural type
+ * (but isn't one, because structural types are slow).
  */
-sealed trait Member {
+sealed abstract class HasGeom {
   def geom: Geom
 }
 
 /**
  * Abstract data type for nodes of the tree.
- * 
+ *
  * There are two types of Node: Branch and Leaf. Confusingly, leaves
  * don't actaully hold values, but rather a leaf contains a sequence
  * of entries. This design is commmon to RTree implementations and it
  * seemed like a good idea to keep the nomenclature the same.
  */
-sealed trait Node[A] extends Member { self =>
+sealed abstract class Node[A] extends HasGeom { self =>
   def box: Box
   def geom: Geom = box
 
-  def children: Vector[Member]
+  def children: Vector[HasGeom]
 
   /**
    * Put all the entries this node contains (directly or indirectly)
@@ -96,17 +99,17 @@ sealed trait Node[A] extends Member { self =>
 
   /**
    * Insert a new Entry into the tree.
-   * 
+   *
    * Since this node is immutable, the method will return a
    * replacement. There are two possible situations:
    *
    * 1. We can replace this node with a new node. This is the common
    *    case.
-   * 
+   *
    * 2. This node was already "full", so we can't just replace it with
    *    a single node. Instead, we will split this node into
    *    (presumably) two new nodes, and return a vector of them.
-   * 
+   *
    * The reason we are using vector here is that it simplifies the
    * implementation, and also because eventually we may support bulk
    * insertion, where more than two nodes might be returned.
@@ -181,24 +184,24 @@ sealed trait Node[A] extends Member { self =>
 
   /**
    * Remove this entry from the tree.
-   * 
+   *
    * The implementations for Leaf and Branch are somewhat involved, so
    * they are defined in each subclass.
-   * 
+   *
    * The return value can be understood as follows:
-   * 
+   *
    * 1. None: the entry was not found in this node. This is the most
    *    common case.
-   * 
+   *
    * 2. Some((es, None)): the entry was found, and this node was
    *    removed (meaning after removal it had too few other
    *    children). The 'es' vector are entries that need to be readded
    *    to the RTree.
-   * 
+   *
    * 3. Some((es, Some(node))): the entry was found, and this node
    *    should be replaced by 'node'. Like above, the 'es' vector
    *    contains entries that should be readded.
-   * 
+   *
    * Because adding entries may require rebalancing the tree, we defer
    * the insertions until after the removal is complete and then readd
    * them in RTree. While 'es' will usually be quite small, it's
@@ -208,7 +211,7 @@ sealed trait Node[A] extends Member { self =>
 
   /**
    * Search for all entries contained in the search space.
-   * 
+   *
    * Points on the boundary of the search space will be included.
    */
   def search(space: Box, f: Entry[A] => Boolean): Seq[Entry[A]] =
@@ -216,7 +219,7 @@ sealed trait Node[A] extends Member { self =>
 
   /**
    * Search for all entries intersecting the search space.
-   * 
+   *
    * Points on the boundary of the search space will be included.
    */
   def searchIntersection(space: Box, f: Entry[A] => Boolean): Seq[Entry[A]] =
@@ -225,28 +228,27 @@ sealed trait Node[A] extends Member { self =>
   /**
    * Search for all entries given a search space, spatial checking
    * function, and criteria function.
-   * 
+   *
    * This method abstracts search and searchIntersection, where the
    * `check` function is either space.contains or space.intersects,
    * respectively.
    */
-  def genericSearch(space: Box, check: Geom => Boolean, f: Entry[A] => Boolean): Seq[Entry[A]] = {
-    if (!space.isFinite) return Seq.empty
-
-    val buf = ArrayBuffer.empty[Entry[A]]
-    def recur(node: Node[A]): Unit = node match {
-      case Leaf(children, box) =>
-        children.foreach { c =>
-          if (check(c.geom) && f(c)) buf.append(c)
-        }
-      case Branch(children, box) =>
-        children.foreach { c =>
-          if (space.intersects(box)) recur(c)
-        }
+  def genericSearch(space: Box, check: Geom => Boolean, f: Entry[A] => Boolean): Seq[Entry[A]] =
+    if (!space.isFinite) Nil else {
+      val buf = ArrayBuffer.empty[Entry[A]]
+      def recur(node: Node[A]): Unit = node match {
+        case Leaf(children, box) =>
+          children.foreach { c =>
+            if (check(c.geom) && f(c)) buf.append(c)
+          }
+        case Branch(children, box) =>
+          children.foreach { c =>
+            if (space.intersects(box)) recur(c)
+          }
+      }
+      if (space.intersects(box)) recur(this)
+      buf
     }
-    if (space.intersects(box)) recur(this)
-    buf
-  }
 
   /**
    * Combine the results of a search(space) into a single result.
@@ -256,12 +258,12 @@ sealed trait Node[A] extends Member { self =>
 
   /**
    * Return an iterator over the results of a search.
-   * 
+   *
    * This produces the same elements as search(space, f).iterator(),
    * without having to build an entire vector at once.
    */
   def searchIterator(space: Box, f: Entry[A] => Boolean): Iterator[Entry[A]] =
-    if (children.isEmpty || !box.contains(space)) {
+    if (children.isEmpty || !box.intersects(space)) {
       Iterator.empty
     } else {
       this match {
@@ -274,7 +276,7 @@ sealed trait Node[A] extends Member { self =>
 
   /**
    * Find the closest entry to `pt` that is within `d0`.
-   * 
+   *
    * This method will either return Some((distance, entry)) or None.
    */
   def nearest(pt: Point, d0: Double): Option[(Double, Entry[A])] = {
@@ -292,7 +294,7 @@ sealed trait Node[A] extends Member { self =>
       case Branch(children, box) =>
         val cs = children.map(node => (node.box.distance(pt), node)).sortBy(_._1)
         cs.foreach { case (d, node) =>
-          if (d >= dist) return result
+          if (d >= dist) return result //scalastyle:ignore
           node.nearest(pt, dist) match {
             case some @ Some((d, _)) =>
               dist = d
@@ -307,7 +309,7 @@ sealed trait Node[A] extends Member { self =>
   /**
    * Find the closest `k` entries to `pt` that are within `d0`, and
    * add them to the given priority queue `pq`.
-   * 
+   *
    * This method returns the distance of the farthest entry that is
    * still included.
    */
@@ -328,7 +330,7 @@ sealed trait Node[A] extends Member { self =>
       case Branch(children, box) =>
         val cs = children.map(node => (node.box.distance(pt), node)).sortBy(_._1)
         cs.foreach { case (d, node) =>
-          if (d >= dist) return dist
+          if (d >= dist) return dist //scalastyle:ignore
           dist = node.nearestK(pt, k, dist, pq)
         }
     }
@@ -339,34 +341,33 @@ sealed trait Node[A] extends Member { self =>
   /**
    * Count the number of entries contained within `space`.
    */
-  def count(space: Box): Int = {
-    if (!space.isFinite) return 0
-
-    def recur(node: Node[A]): Int = node match {
-      case Leaf(children, box) =>
-        var n = 0
-        var i = 0
-        while (i < children.length) {
-          if (space.contains(children(i).geom)) n += 1
-          i += 1
-        }
-        n
-      case Branch(children, box) =>
-        var n = 0
-        var i = 0
-        while (i < children.length) {
-          val c = children(i)
-          if (space.intersects(c.box)) n += recur(c)
-          i += 1
-        }
-        n
+  def count(space: Box): Int =
+    if (!space.isFinite) 0 else {
+      def recur(node: Node[A]): Int = node match {
+        case Leaf(children, box) =>
+          var n = 0
+          var i = 0
+          while (i < children.length) {
+            if (space.contains(children(i).geom)) n += 1
+            i += 1
+          }
+          n
+        case Branch(children, box) =>
+          var n = 0
+          var i = 0
+          while (i < children.length) {
+            val c = children(i)
+            if (space.intersects(c.box)) n += recur(c)
+            i += 1
+          }
+          n
+      }
+      if (space.intersects(box)) recur(this) else 0
     }
-    if (space.intersects(box)) recur(this) else 0
-  }
 
   /**
    * Determine if entry is contained in the tree.
-   * 
+   *
    * This method depends upon reasonable equality for A. It can only
    * match an Entry(pt, x) if entry.value == x.value.
    */
@@ -405,7 +406,7 @@ case class Branch[A](children: Vector[Node[A]], box: Box) extends Node[A] {
               val b = contract(child.geom, cs.foldLeft(Box.empty)(_ expand _.geom))
               Some((es, Some(Branch(cs, b))))
             }
-            
+
           case Some((es, Some(node))) =>
             val cs = children.updated(i, node)
             val b = contract(child.geom, cs.foldLeft(Box.empty)(_ expand _.geom))
@@ -423,7 +424,7 @@ case class Branch[A](children: Vector[Node[A]], box: Box) extends Node[A] {
 case class Leaf[A](children: Vector[Entry[A]], box: Box) extends Node[A] {
 
   def remove(entry: Entry[A]): Option[(Joined[Entry[A]], Option[Node[A]])] = {
-    if (!box.contains(entry.geom)) return None
+    if (!box.contains(entry.geom)) return None //scalastyle:ignore
     val i = children.indexOf(entry)
     if (i < 0) {
       None
@@ -441,12 +442,12 @@ case class Leaf[A](children: Vector[Entry[A]], box: Box) extends Node[A] {
 
 /**
  * Represents a point with a value.
- * 
+ *
  * We frequently use value.== so it's important that A have a
  * reasonable equality definition. Otherwise things like remove and
  * contains may not work very well.
  */
-case class Entry[A](geom: Geom, value: A) extends Member
+case class Entry[A](geom: Geom, value: A) extends HasGeom
 
 object Node {
 
@@ -454,7 +455,7 @@ object Node {
 
   /**
    * Splits the children of a leaf node.
-   * 
+   *
    * See splitter for more information.
    */
   def splitLeaf[A](children: Vector[Entry[A]]): Vector[Leaf[A]] = {
@@ -464,7 +465,7 @@ object Node {
 
   /**
    * Splits the children of a branch node.
-   * 
+   *
    * See splitter for more information.
    */
   def splitBranch[A](children: Vector[Node[A]]): Vector[Branch[A]] = {
@@ -475,15 +476,15 @@ object Node {
   /**
    * Splits a collection of members into two new collections, grouped
    * according to the rtree algorithm.
-   * 
+   *
    * The results (a vector and a bounding box) will be used to create
    * new nodes.
-   * 
+   *
    * The goal is to minimize the area and overlap of the pairs'
    * bounding boxes. We are using a linear seeding strategy since it
    * is simple and has worked well for us in the past.
    */
-  def splitter[M <: Member](children: Vector[M]): ((Vector[M], Box), (Vector[M], Box)) = {
+  def splitter[M <: HasGeom](children: Vector[M]): ((Vector[M], Box), (Vector[M], Box)) = {
     val buf = ArrayBuffer(children: _*)
     val (seed1, seed2) = pickSeeds(buf)
 
@@ -492,8 +493,8 @@ object Node {
     val nodes1 = ArrayBuffer(seed1)
     val nodes2 = ArrayBuffer(seed2)
 
-    def add1(node: M) { nodes1 += node; box1 = box1.expand(node.geom) }
-    def add2(node: M) { nodes2 += node; box2 = box2.expand(node.geom) }
+    def add1(node: M): Unit = { nodes1 += node; box1 = box1.expand(node.geom) }
+    def add2(node: M): Unit = { nodes2 += node; box2 = box2.expand(node.geom) }
 
     while (buf.nonEmpty) {
 
@@ -545,12 +546,12 @@ object Node {
    * Given a collection of members, we want to find the two that have
    * the greatest distance from each other in some dimension. This is
    * the "linear" strategy.
-   * 
+   *
    * Other strategies (like finding the greatest distance in both
    * dimensions) might give better seeds but would be slower. This
    * seems to work OK for now.
    */
-  def pickSeeds[M <: Member](nodes: ArrayBuffer[M]): (M, M) = {
+  def pickSeeds[M <: HasGeom](nodes: ArrayBuffer[M]): (M, M) = {
 
     // find the two geometries that have the most space between them
     // in this particular dimension. the sequence is (lower, upper) points
@@ -591,4 +592,3 @@ object Node {
     (node1, node2)
   }
 }
-

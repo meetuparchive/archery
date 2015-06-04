@@ -2,6 +2,7 @@ package archery
 
 import scala.collection.mutable.{ArrayBuffer, PriorityQueue}
 import scala.math.{min, max}
+import scala.util.Try
 
 object RTree {
 
@@ -20,12 +21,50 @@ object RTree {
 /**
  * This is the magnificent RTree, which makes searching ad-hoc
  * geographic data fast and fun.
- * 
+ *
  * The RTree wraps a node called 'root' that is the actual root of the
  * tree structure. RTree also keeps track of the total size of the
  * tree (something that individual nodes don't do).
  */
 case class RTree[A](root: Node[A], size: Int) {
+
+  /**
+   * Typesafe equality test.
+   *
+   * In order to be considered equal, two trees must have the same
+   * number of entries, and each entry found in one should be found in
+   * the other.
+   */
+  def ===(that: RTree[A]): Boolean =
+    size == that.size && entries.forall(that.contains)
+
+  /**
+   * Universal equality test.
+   *
+   * Trees can only be equal to other trees. Unlike some other
+   * containers, the trees must be parameterized on the same type, or
+   * else the comparison will fail.
+   *
+   * This means comparing an RTree[Int] and an RTree[BigInt] will
+   * always return false.
+   */
+  override def equals(that: Any): Boolean =
+    that match {
+      case rt: RTree[_] =>
+        Try(this === rt.asInstanceOf[RTree[A]]).getOrElse(false)
+      case _ =>
+        false
+    }
+
+  /**
+   * Universal hash code method.
+   */
+  override def hashCode(): Int = {
+    var x = 0xbadd0995
+    val it = entries
+    while (it.hasNext) x ^= (it.next.hashCode * 777 + 1)
+    x
+  }
 
   /**
    * Insert a value into the tree at (x, y), returning a new tree.
@@ -52,17 +91,17 @@ case class RTree[A](root: Node[A], size: Int) {
 
   /**
    * Remove an entry from the tree, returning a new tree.
-   * 
-   * If the entry was not present, this method will throw an error.
+   *
+   * If the entry was not present, the tree is simply returned.
    */
   def remove(entry: Entry[A]): RTree[A] =
     root.remove(entry) match {
       case None =>
-        sys.error("wat")
+        this
       case Some((es, None)) =>
         es.foldLeft(RTree.empty[A])(_ insert _)
       case Some((es, Some(node))) =>
-        es.foldLeft(RTree(node, size - 1))(_ insert _)
+        es.foldLeft(RTree(node, size - es.size - 1))(_ insert _)
     }
 
   /**
@@ -98,11 +137,11 @@ case class RTree[A](root: Node[A], size: Int) {
   /**
    * Construct a result an initial value, the entries found in a
    * search space, and a binary function `f`.
-   * 
+   *
    *   rtree.foldSearch(space, init)(f)
-   * 
+   *
    * is equivalent to (but more efficient than):
-   * 
+   *
    *   rtree.search(space).foldLeft(init)(f)
    */
   def foldSearch[B](space: Box, init: B)(f: (B, Entry[A]) => B): B =
@@ -172,11 +211,14 @@ case class RTree[A](root: Node[A], size: Int) {
 
   /**
    * Return a nice depiction of the tree.
-   * 
+   *
    * This method should only be called on small-ish trees! It will
    * print one line for every branch, leaf, and entry, so for a tree
    * with thousands of entries this will result in a very large
    * string!
    */
   def pretty: String = root.pretty
+
+  override def toString: String =
+    s"RTree(<$size entries>)"
 }
