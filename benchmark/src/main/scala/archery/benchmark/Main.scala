@@ -7,6 +7,7 @@ import scala.util.Random.{nextFloat, nextInt, nextGaussian}
 
 import ichi.bench.Thyme
 
+// $COVERAGE-OFF$
 object Main {
   val xmin, ymin = -5000F
   val xmax, ymax = 5000F
@@ -74,3 +75,4 @@ object Main {
     }
   }
 }
+// $COVERAGE-ON$
