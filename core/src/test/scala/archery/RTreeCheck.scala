@@ -1,8 +1,6 @@
 package archery
 
 import scala.collection.mutable.ArrayBuffer
-import scala.math.{ceil, min, max}
-import scala.util.Random.{nextGaussian, nextInt}
 import scala.util.Try
 
 import org.scalacheck.Arbitrary._
@@ -10,69 +8,18 @@ import org.scalatest._
 import prop._
 
 import org.scalacheck._
-import Gen._
 import Arbitrary.arbitrary
 
+import Check._
+
 class RTreeCheck extends PropSpec with Matchers with GeneratorDrivenPropertyChecks {
-
-  val xmin = -14030169.0F
-  val ymin =   2873645.0F
-  val xmax =  -7455361.0F
-  val ymax =   6226366.0F
-  val dx = xmax - ymin
-  val dy = ymax - ymin
-
-  val finite: Gen[Float] =
-    arbitrary[Float].suchThat(n => !n.isInfinite && !n.isNaN)
-
-  implicit val ordering: Ordering[Entry[Int]] =
-    Ordering.by(e => (e.geom.x, e.geom.y, e.geom.x2, e.geom.y2, e.value))
-
-  implicit val arbpoint: Arbitrary[Point] =
-    Arbitrary(for {
-      x <- finite
-      y <- finite
-    } yield {
-      Point(xmin + dx * (x.abs % 1.0F), ymin + dy * (y.abs % 1.0F))
-    })
-
-  implicit val arbbox: Arbitrary[Box] =
-    Arbitrary(for {
-      x1 <- finite
-      x2 <- finite
-      y1 <- finite
-      y2 <- finite
-    } yield {
-      Box(min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2))
-    })
-
-  implicit val arbentry: Arbitrary[Entry[Int]] =
-    Arbitrary(for {
-      either <- arbitrary[Either[Point, Box]]
-      n <- arbitrary[Int]
-    } yield {
-      Entry(either.fold(identity, identity), n)
-    })
-
-  def build(es: Seq[Entry[Int]]): RTree[Int] =
-    RTree(es: _*)
-
-  def gaussianPoint(): Point =
-    Point(nextGaussian.toFloat * 100 + 1000, nextGaussian.toFloat * 100 - 1000)
-
-  def gaussianBox(): Box = {
-    val xa = nextGaussian.toFloat * 100 + 1000
-    val xb = nextGaussian.toFloat * 100 + 1000
-    val ya = nextGaussian.toFloat * 100 - 1000
-    val yb = nextGaussian.toFloat * 100 - 1000
-    Box(xa min xb, ya min yb, xa max xb, ya max yb)
-  }
 
   property("rtree.insert works") {
     forAll { (tpls: List[(Point, Int)]) =>
       val es = tpls.map { case (p, n) => Entry(p, n) }
       val rt1 = build(es)
-      rt1.root.entries.toSet shouldBe es.toSet
+      rt1.entries.toSet shouldBe es.toSet
+      rt1.values.toSet shouldBe tpls.map(_._2).toSet
 
       val rt2 = tpls.foldLeft(RTree.empty[Int]) { case (rt, (p, n)) =>
         rt.insert(p.x, p.y, n)
@@ -101,7 +48,10 @@ class RTreeCheck extends PropSpec with Matchers with GeneratorDrivenPropertyChec
     forAll { (es: List[Entry[Int]], e: Entry[Int]) =>
       val rt = build(es)
       es.forall(rt.contains) shouldBe true
-
+      es.forall {
+        case Entry(Point(x, y), v) => rt.contains(x, y, v)
+        case _ => true
+      } shouldBe true
       rt.contains(e) shouldBe es.contains(e)
     }
   }
@@ -110,20 +60,15 @@ class RTreeCheck extends PropSpec with Matchers with GeneratorDrivenPropertyChec
     forAll { (es: List[Entry[Int]]) =>
       var rt = build(es)
       var size = rt.size
+
+      // very small chance of failing
+      rt shouldBe rt.remove(Entry(Point(1234F, 5678F), 0xbad))
+
       es.foreach { e =>
         rt = rt.remove(e)
         size -= 1
         rt.size shouldBe size
       }
-    }
-  }
-
-  def shuffle[A](buf: ArrayBuffer[A]): Unit = {
-    for (i <- 1 until buf.length) {
-      val j = nextInt(i)
-      val t = buf(i)
-      buf(i) = buf(j)
-      buf(j) = t
     }
   }
 
@@ -141,16 +86,8 @@ class RTreeCheck extends PropSpec with Matchers with GeneratorDrivenPropertyChec
     }
   }
 
-  val mile = 1600F
-
-  def bound(g: Geom, n: Int): Box = {
-    val d = 10F * mile
-    Box(g.x - d, g.y - d, g.x2 + d, g.y2 + d)
-  }
-
   property("rtree.search/count ignores nan/inf") {
-    forAll { (es: List[Entry[Int]], p: Point) =>
-      val rt = build(es)
+    forAll { (rt: RTree[Int]) =>
       val nil = Seq.empty[Entry[Int]]
 
       rt.search(Box(Float.PositiveInfinity, 3F, 9F, 9F)) shouldBe nil
@@ -170,11 +107,29 @@ class RTreeCheck extends PropSpec with Matchers with GeneratorDrivenPropertyChec
       val rt = build(es)
 
       val box1 = bound(p, 10)
-      rt.search(box1).toSet shouldBe es.filter(e => box1.contains(e.geom)).toSet
+      val results1 = rt.search(box1).toSet
+      results1 shouldBe es.filter(e => box1.contains(e.geom)).toSet
+
+      val f = (e: Entry[Int]) => e.value % 2 == 0
+      val results1f = rt.search(box1, f).toSet
+      results1f shouldBe es.filter(e => box1.contains(e.geom) && f(e)).toSet
+      results1f shouldBe results1.filter(f)
+
+      val g = (n: Long, e: Entry[Int]) => n + e.value
 
       es.foreach { e =>
         val box2 = bound(e.geom, 10)
-        rt.search(box2).toSet shouldBe es.filter(e => box2.contains(e.geom)).toSet
+        val results = rt.search(box2)
+        results.toSet shouldBe es.filter(e => box2.contains(e.geom)).toSet
+
+        val x = results.foldLeft(0L)(g)
+        val y = rt.foldSearch(box2, 0L)(g)
+        if (x != y) {
+          println(box2)
+          println(rt.pretty)
+          println(rt.root.searchIterator(box2, _ => true).toList)
+        }
+        x shouldBe y
       }
     }
   }
@@ -185,6 +140,9 @@ class RTreeCheck extends PropSpec with Matchers with GeneratorDrivenPropertyChec
 
       val box1 = bound(p, 10)
       rt.searchIntersection(box1).toSet shouldBe es.filter(e => box1.intersects(e.geom)).toSet
+
+      val f = (e: Entry[Int]) => e.value % 3 != 1
+      rt.searchIntersection(box1, f).toSet shouldBe es.filter(e => box1.intersects(e.geom) && f(e)).toSet
 
       es.foreach { e =>
         val box2 = bound(e.geom, 10)
@@ -254,6 +212,28 @@ class RTreeCheck extends PropSpec with Matchers with GeneratorDrivenPropertyChec
     }
   }
 
+  property("dense rtree") {
+    val es = (1 to 100000).map(n => Entry(gaussianPoint, n))
+    val rt = build(es)
+    rt.size shouldBe es.size
+    es.forall(rt.contains) shouldBe true
+
+    var rt0 = rt
+    var size = rt.size
+    es.foreach { e =>
+      rt0 = rt0.remove(e)
+      size -= 1
+      rt0.size shouldBe size
+    }
+  }
+
+  property("sane toString/pretty-printing") {
+    forAll { (rt: RTree[Int]) =>
+      rt.toString.length should be < 20
+      Try(rt.pretty).isSuccess shouldBe true
+    }
+  }
+
   sealed trait Action {
     def test(rt: RTree[Int]): RTree[Int]
     def control(es: List[Entry[Int]]): List[Entry[Int]]
@@ -305,25 +285,7 @@ class RTreeCheck extends PropSpec with Matchers with GeneratorDrivenPropertyChec
     }
   }
 
-  property("dense rtree") {
-    val es = (1 to 100000).map(n => Entry(gaussianPoint, n))
-    val rt = build(es)
-    rt.size shouldBe es.size
-    es.forall(rt.contains) shouldBe true
-
-    var rt0 = rt
-    var size = rt.size
-    es.foreach { e =>
-      rt0 = rt0.remove(e)
-      size -= 1
-      rt0.size shouldBe size
-    }
-  }
-
-  property("pretty-printing") {
-    forAll { (es: List[Entry[Int]]) =>
-      val rt = build(es)
-      Try(rt.pretty).isSuccess shouldBe true
-    }
+  property("prove coverage of inlined constant") {
+    Constants.MaxEntries shouldBe 50
   }
 }

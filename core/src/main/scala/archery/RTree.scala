@@ -92,12 +92,12 @@ case class RTree[A](root: Node[A], size: Int) {
   /**
    * Remove an entry from the tree, returning a new tree.
    *
-   * If the entry was not present, this method will throw an error.
+   * If the entry was not present, the tree is simply returned.
    */
   def remove(entry: Entry[A]): RTree[A] =
     root.remove(entry) match {
       case None =>
-        sys.error("wat")
+        this
       case Some((es, None)) =>
         es.foldLeft(RTree.empty[A])(_ insert _)
       case Some((es, Some(node))) =>

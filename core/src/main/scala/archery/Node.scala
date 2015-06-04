@@ -7,7 +7,9 @@ import scala.math.{min, max}
  * Some useful constants that we don't want to hardcode.
  */
 object Constants {
+  // $COVERAGE-OFF$
   @inline final val MaxEntries = 50
+  // $COVERAGE-ON$
 }
 
 import Constants._
@@ -261,7 +263,7 @@ sealed abstract class Node[A] extends HasGeom { self =>
    * without having to build an entire vector at once.
    */
   def searchIterator(space: Box, f: Entry[A] => Boolean): Iterator[Entry[A]] =
-    if (children.isEmpty || !box.contains(space)) {
+    if (children.isEmpty || !box.intersects(space)) {
       Iterator.empty
     } else {
       this match {

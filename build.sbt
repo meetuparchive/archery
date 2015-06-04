@@ -1,5 +1,3 @@
-// import bintray.BintrayPlugin.bintraySettings
-// import bintray.BintrayKeys._
 import sbt._
 import sbt.Keys._
 
@@ -31,32 +29,32 @@ lazy val commonSettings = Seq(
     "-Xfuture"))
 
 lazy val publishSettings = Seq(
-  bintrayOrganization in bintray := Some("meetup")
-)
+  bintrayOrganization in bintray := Some("meetup"))
 
 lazy val noPublishSettings = Seq(
   publish := (),
   publishLocal := (),
-  publishArtifact := false
-)
+  publishArtifact := false)
 
-lazy val archerySettings = buildSettings ++ commonSettings ++ publishSettings //++ releaseSettings
+lazy val archerySettings =
+  buildSettings ++ commonSettings ++ publishSettings
 
-lazy val archery = project.in(file("."))
+lazy val archery =
+  project.in(file("."))
   .settings(archerySettings)
   .settings(noPublishSettings)
   .aggregate(core, benchmark)
 
-lazy val core = project
+lazy val core =
+  project
   .settings(moduleName := "archery-core")
   .settings(archerySettings)
   .settings(libraryDependencies ++= Seq(
     "org.scalatest" %% "scalatest" % "2.2.4" % "test",
     "org.scalacheck" %% "scalacheck" % "1.12.2" % "test"))
-  //.settings(bintraySettings)
 
-// benchmark project
-lazy val benchmark = project.dependsOn(core)
+lazy val benchmark =
+  project.dependsOn(core)
   .settings(moduleName := "archery-benchmark")
   .settings(archerySettings)
   .settings(noPublishSettings)
@@ -64,8 +62,5 @@ lazy val benchmark = project.dependsOn(core)
     fork in run := true,
     javaOptions in run += "-Xmx4G",
     libraryDependencies ++= Seq(
-      "ichi.bench" % "thyme" % "0.1.1" from "http://plastic-idolatry.com/jars/thyme-0.1.1.jar"//,
-      //"com.azavea.geotrellis" %% "geotrellis" % "0.9.0-RC1"),
-    ),
-    resolvers += Resolver.sonatypeRepo("releases")
-  ))
+      "ichi.bench" % "thyme" % "0.1.1" from "http://plastic-idolatry.com/jars/thyme-0.1.1.jar"),
+    resolvers += Resolver.sonatypeRepo("releases")))
