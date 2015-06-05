@@ -29,7 +29,7 @@ lazy val commonSettings = Seq(
     "-Xfuture"))
 
 lazy val publishSettings = Seq(
-  bintrayOrganization in bintray := Some("meetup"))
+  bintrayOrganization := Some("meetup"))
 
 lazy val noPublishSettings = Seq(
   publish := (),
@@ -41,13 +41,14 @@ lazy val archerySettings =
 
 lazy val archery =
   project.in(file("."))
+  .settings(moduleName := "aggregate")
   .settings(archerySettings)
   .settings(noPublishSettings)
   .aggregate(core, benchmark)
 
 lazy val core =
   project
-  .settings(moduleName := "archery-core")
+  .settings(moduleName := "archery")
   .settings(archerySettings)
   .settings(libraryDependencies ++= Seq(
     "org.scalatest" %% "scalatest" % "2.2.4" % "test",
