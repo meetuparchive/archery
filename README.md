@@ -17,27 +17,25 @@ The name "archery" is a corruption of the word "R-Tree".
 
 Archery is published to [bintray](https://bintray.com/) using the
 [bintray-sbt](https://github.com/softprops/bintray-sbt) plugin.
+Archery is available for Scala 2.10 and Scala 2.11.
 
 If you use SBT, you can include Archery via the following `build.sbt`
-snippets:
+snippet:
 
-```
+```scala
 resolvers += "bintray/meetup" at "http://dl.bintray.com/meetup/maven"
 
-libraryDependencies += "com.meetup" %% "archery" % "0.3.0"
+libraryDependencies += "com.meetup" %% "archery" % "0.4.0"
 ```
 
 For Maven or Ivy, you'll use the same resolver URL but you'll need a
-slightly different artifact name (the example is for Scala 2.10):
+slightly different artifact name (the example is for Scala 2.11):
 
 ```
 org=com.meetup
-name=archery_2.10
-rev=0.3.0
+name=archery_2.11
+rev=0.4.0
 ```
-
-Archery is currently published against Scala 2.10 and Scala 2.11,
-although a future release may include 2.9 support as well.
 
 ### Example Usage
 
@@ -70,18 +68,47 @@ assert(results.length == n)
 
 ### Contributing
 
+If you find something that seems like a bug in Archery, or see
+confusing behavior, or find a place where the documentation or library
+could be better, please [open an issue](https://github.com/meetup/archery/issues).
+
+Pull requests are gladly accepted. The preferred strategy is to open an
+issue or pull request where the feature can be discussed. We can use
+the PR to collaborate on, and will merge it once everyone agrees on the
+change, the tests and docs are updated, etc.
+
+### Building Archery
+
 Building this project requires SBT 0.13.x.
 
 After you launch SBT, you can run the following commands:
 
- * `compile` compile the project
- * `core/test` run the tests
- * `benchmark/run` run the included timing benchmarks
+ * `compile` compile the project.
+ * `test` run the tests.
+ * `scalastyle` run the style-checking.
+ * `benchmark/run` run the included timing benchmarks.
  * `console` load a scala REPL with archery on the classpath.
 
-Tests are written with [ScalaTest](http://www.scalatest.org/) and use the
-excellent [ScalaCheck](https://github.com/rickynils/scalacheck) library for
-automated specification-based testing.
+(Travis automatically runs `test` and `scalastyle`, so any issues
+should also be detected when a pull request is opened.)
+
+You can generate coverage statistics manually by running the following
+command from the command-line:
+
+```
+$ sbt clean coverage test coverageReport
+```
+
+Open `core/target/scala-2.11/scoverage-report/index.html` in a web
+browser to see local coverage.
+
+Tests are written with [ScalaTest](http://www.scalatest.org/) and use
+the excellent [ScalaCheck](https://github.com/rickynils/scalacheck)
+library for automated specification-based testing.
+
+Test coverage is measured using
+[sbt-scoverage](https://github.com/scoverage/sbt-scoverage) and tracked
+at [codecov.io](https://codecov.io/github/meetup/archery).
 
 The benchmarks are written against Rex Kerr's excellent library
 [Thyme](https://github.com/Ichoran/thyme).
