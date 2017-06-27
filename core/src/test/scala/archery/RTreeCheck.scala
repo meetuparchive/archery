@@ -134,7 +134,7 @@ class RTreeCheck extends PropSpec with Matchers with GeneratorDrivenPropertyChec
     }
   }
 
-  property("rtree.searchIntersection works") {
+  property("rtree.searchIntersection works(Box)") {
     forAll { (es: List[Entry[Int]], p: Point) =>
       val rt = build(es)
 
@@ -147,6 +147,21 @@ class RTreeCheck extends PropSpec with Matchers with GeneratorDrivenPropertyChec
       es.foreach { e =>
         val box2 = bound(e.geom, 10)
         rt.searchIntersection(box2).toSet shouldBe es.filter(e => box2.intersects(e.geom)).toSet
+      }
+    }
+  }
+
+  property("rtree.searchIntersection works(Point)") {
+    forAll { (es: List[Entry[Int]], p: Point) =>
+      val rt = build(es)
+
+      rt.searchIntersection(p).toSet shouldBe es.filter(e => p.intersects(e.geom)).toSet
+
+      val f = (e: Entry[Int]) => e.value % 3 != 1
+      rt.searchIntersection(p, f).toSet shouldBe es.filter(e => p.intersects(e.geom) && f(e)).toSet
+
+      es.foreach { e =>
+        rt.searchIntersection(p).toSet shouldBe es.filter(e => p.intersects(e.geom)).toSet
       }
     }
   }
