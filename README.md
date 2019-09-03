@@ -16,8 +16,8 @@ The name "archery" is a corruption of the word "R-Tree".
 ### Getting Archery
 
 Archery is published to [bintray](https://bintray.com/) using the
-[bintray-sbt](https://github.com/softprops/bintray-sbt) plugin.
-Archery is available for Scala 2.10 and Scala 2.11.
+[bintray-sbt](https://github.com/sbt/sbt-bintray) plugin.
+Archery is available for Scala 2.11 and Scala 2.12.
 
 If you use SBT, you can include Archery via the following `build.sbt`
 snippet:
@@ -25,16 +25,16 @@ snippet:
 ```scala
 resolvers += "bintray/meetup" at "http://dl.bintray.com/meetup/maven"
 
-libraryDependencies += "com.meetup" %% "archery" % "0.4.0"
+libraryDependencies += "com.meetup" %% "archery" % "0.4.1"
 ```
 
 For Maven or Ivy, you'll use the same resolver URL but you'll need a
-slightly different artifact name (the example is for Scala 2.11):
+slightly different artifact name (the example is for Scala 2.12):
 
 ```
 org=com.meetup
-name=archery_2.11
-rev=0.4.0
+name=archery_2.12
+rev=0.4.1
 ```
 
 ### Example Usage
@@ -79,7 +79,7 @@ change, the tests and docs are updated, etc.
 
 ### Building Archery
 
-Building this project requires SBT 0.13.x.
+Building this project requires SBT 1.x.
 
 After you launch SBT, you can run the following commands:
 
@@ -99,7 +99,7 @@ command from the command-line:
 $ sbt clean coverage test coverageReport
 ```
 
-Open `core/target/scala-2.11/scoverage-report/index.html` in a web
+Open `core/target/scala-2.12/scoverage-report/index.html` in a web
 browser to see local coverage.
 
 Tests are written with [ScalaTest](http://www.scalatest.org/) and use
@@ -120,6 +120,6 @@ Archery is available to you under the MIT license. See the
 
 ### Credits
 
-Archery is maintained by Erik Osheim.
+Archery was originally written and maintained by Erik Osheim.
 
-Copyright (c) 2013-2015 Meetup Inc.
+Copyright (c) 2013-2019 Meetup Inc.
